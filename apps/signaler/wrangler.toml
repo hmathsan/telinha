@@ -1,0 +1,12 @@
+name = "pvt-broadcast-signaler"
+main = "src/index.ts"
+compatibility_date = "2026-01-01"
+
+# Durable Object por Sessão — classe implementada pela spec 0002.
+# [[durable_objects.bindings]]
+# name = "SESSAO"
+# class_name = "SessaoDurableObject"
+#
+# [[migrations]]
+# tag = "v1"
+# new_sqlite_classes = ["SessaoDurableObject"]
