@@ -1,0 +1,17 @@
+appId: com.pvtbroadcast.desktop
+productName: pvt-broadcast
+directories:
+  output: release
+files:
+  - out/**/*
+  - package.json
+win:
+  target: nsis
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  differentialPackage: true
+publish:
+  provider: github
+  owner: hmathsan
+  repo: scrn-broadcast

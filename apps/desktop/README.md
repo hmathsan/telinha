@@ -1,9 +1,9 @@
 # apps/desktop
 
-Electron + electron-vite + React. Implementa a spec 0003 (malha de mídia) nesta sessão; a UI é
-o mínimo necessário para exercitá-la — a interface completa é a spec
-[0004](../../docs/specs/0004-interface.md), e o empacotamento é a spec
-[0005](../../docs/specs/0005-empacotamento.md).
+Electron + electron-vite + React. A malha de mídia é a spec
+[0003](../../docs/specs/0003-malha-de-midia.md), a interface é a spec
+[0004](../../docs/specs/0004-interface.md), e o empacotamento (`electron-builder`,
+`electron-updater`) é a spec [0005](../../docs/specs/0005-empacotamento.md).
 
 - `src/main` — processo principal: flags do WGC, o `setDisplayMediaRequestHandler` que abre a
   grade de Fontes própria, o cliente WebSocket de sinalização (spec 0002: "o cliente é um
@@ -29,6 +29,24 @@ npm run dev             # nesta pasta, ou "npm run dev -w @pvt-broadcast/desktop
 
 Precisa de um sinalizador rodando (`npm run dev` em `apps/signaler`, que sobe `wrangler dev` em
 `localhost:8787` por padrão).
+
+## Empacotando e publicando (spec 0005)
+
+```
+npm run build    # electron-vite build + electron-builder: gera o instalador NSIS em release/,
+                  # sem publicar nada (--publish never)
+npm run release   # o mesmo build, mas publica em GitHub Releases (--publish always).
+                  # Precisa de GH_TOKEN com permissão de escrita no repositório.
+```
+
+`electron-builder.yml` aponta o `publish` para `hmathsan/scrn-broadcast` — o repositório é
+público por causa do auto-update (ver [ADR 0005](../../docs/adr/0005-repositorio-publico-por-causa-do-auto-update.md)).
+O blockmap (`*.exe.blockmap`) sai junto do instalador; é o que permite ao `electron-updater`
+baixar só o delta em vez dos ~100 MB inteiros a cada atualização.
+
+O app checa por atualização silenciosamente ao iniciar (`src/main/autoUpdater.ts`), só fora de
+`npm run dev` (não existe `app-update.yml` num build de desenvolvimento). A atualização baixada
+é aplicada no próximo início do app, sem diálogo.
 
 ## Pontos que dependem de confirmação na máquina
 

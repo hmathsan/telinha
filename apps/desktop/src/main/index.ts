@@ -6,6 +6,7 @@ import { createMainWindow } from "./mainWindow.js";
 import { openFontePicker } from "./sourcePicker.js";
 import { SignalingClient } from "./signalingClient.js";
 import { exportDiagnostics } from "./diagnosticsExport.js";
+import { startAutoUpdater } from "./autoUpdater.js";
 import { IPC_CHANNELS, type ConnectAction, type DiagnosticsExportRequest } from "../shared/ipc.js";
 
 // Precisa rodar antes de app.whenReady() (spec 0003, "A captura de janela precisa de WGC").
@@ -72,6 +73,7 @@ app.whenReady().then(() => {
   registerSessaoIpc();
   registerDiagnosticsIpc();
   registerSignalerUrlIpc();
+  startAutoUpdater();
   mainWindow = createMainWindow();
 
   app.on("activate", () => {
