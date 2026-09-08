@@ -33,6 +33,12 @@ export interface ClientSessaoState {
   readonly entryError: EntryRefusedReason | null;
   readonly palcoDeniedReason: PalcoDeniedReason | null;
   readonly sessaoEndedReason: SessaoEndedReason | null;
+  /**
+   * O Durable Object fecha o WebSocket sem mandar mensagem alguma quando expulsa alguém ou
+   * fecha uma Sessão já encerrada (ver `durableObject.ts`: `safeClose`). `sessaoEndedReason`
+   * cobre só a saída do Anfitrião, que É anunciada por mensagem — isto cobre o resto.
+   */
+  readonly lastDisconnectReason: string | null;
 }
 
 export const initialClientSessaoState: ClientSessaoState = {
@@ -48,12 +54,14 @@ export const initialClientSessaoState: ClientSessaoState = {
   entryError: null,
   palcoDeniedReason: null,
   sessaoEndedReason: null,
+  lastDisconnectReason: null,
 };
 
 export type ClientSessaoAction =
   | { readonly source: "signaler"; readonly message: SignalerToAppMessage }
   | { readonly source: "connect-attempt"; readonly connectAction: ConnectAction }
   | { readonly source: "respond-entry"; readonly participanteId: string }
+  | { readonly source: "connection-terminated"; readonly reason: string }
   | { readonly source: "reset" };
 
 export function sessaoReducer(state: ClientSessaoState, action: ClientSessaoAction): ClientSessaoState {
@@ -70,6 +78,14 @@ export function sessaoReducer(state: ClientSessaoState, action: ClientSessaoActi
       ...state,
       pendingEntryRequests: state.pendingEntryRequests.filter((r) => r.participanteId !== action.participanteId),
     };
+  }
+
+  if (action.source === "connection-terminated") {
+    // Já na tela de entrada == uma mensagem (entry-refused, sessao-ended) chegou primeiro e já
+    // contou a razão mais específica; o fechamento do WebSocket que vem logo depois não deve
+    // sobrescrevê-la com um motivo genérico.
+    if (state.screen === "entry") return state;
+    return { ...initialClientSessaoState, lastDisconnectReason: action.reason };
   }
 
   const message = action.message;

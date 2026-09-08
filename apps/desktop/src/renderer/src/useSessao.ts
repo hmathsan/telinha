@@ -66,11 +66,15 @@ export function useSessao() {
   const previousMyIdRef = useRef<string | null>(null);
   const meshRef = useRef<MeshManager | null>(null);
 
-  if (!meshRef.current) {
-    meshRef.current = new MeshManager(buildHandlers(setRemoteStreams, setDiagnostics, setWarnings));
-  }
-
   const send = useCallback((message: AppToSignalerMessage) => window.pvtBroadcast.send(message), []);
+
+  // Uma malha nova a cada conexão (não só na primeira): reaproveitar a instância anterior depois
+  // de `close()` deixaria o timer de diagnóstico morto para a próxima Sessão — `close()` para
+  // valer só na saída/desmontagem, então "conectar de novo" precisa de um objeto novo.
+  const createMesh = useCallback(
+    () => new MeshManager(buildHandlers(setRemoteStreams, setDiagnostics, setWarnings)),
+    [],
+  );
 
   useEffect(() => {
     function routeToMesh(message: SignalerToAppMessage): void {
@@ -90,7 +94,7 @@ export function useSessao() {
           let currentMesh = mesh;
           if (previousMyIdRef.current && previousMyIdRef.current !== message.participanteId) {
             currentMesh.close();
-            currentMesh = new MeshManager(buildHandlers(setRemoteStreams, setDiagnostics, setWarnings));
+            currentMesh = createMesh();
             currentMesh.setIceServers(stateRef.current.iceServers);
             meshRef.current = currentMesh;
             setIsTransmitting(false);
@@ -151,7 +155,19 @@ export function useSessao() {
       dispatch({ source: "signaler", message });
       routeToMesh(message);
     });
-    const offState = window.pvtBroadcast.onConnectionState(setConnectionState);
+    const offState = window.pvtBroadcast.onConnectionState((connectionState) => {
+      setConnectionState(connectionState);
+      if (connectionState.status === "closed") {
+        // O Durable Object fecha o WebSocket sem mensagem alguma ao expulsar ou ao encerrar uma
+        // Sessão já terminada (durableObject.ts: safeClose) — sem isto, o app expulso ficava
+        // parado na última tela, sem saber por quê, até clicar em "Sair" manualmente.
+        meshRef.current?.close();
+        setIsTransmitting(false);
+        setLocalStream(null);
+        setRemoteStreams(new Map());
+        dispatch({ source: "connection-terminated", reason: connectionState.reason });
+      }
+    });
     return () => {
       offMessage();
       offState();
@@ -165,10 +181,16 @@ export function useSessao() {
     };
   }, []);
 
-  const connect = useCallback((action: ConnectAction) => {
-    dispatch({ source: "connect-attempt", connectAction: action });
-    window.pvtBroadcast.connect(action);
-  }, []);
+  const connect = useCallback(
+    (action: ConnectAction) => {
+      meshRef.current?.close();
+      meshRef.current = createMesh();
+      previousMyIdRef.current = null;
+      dispatch({ source: "connect-attempt", connectAction: action });
+      window.pvtBroadcast.connect(action);
+    },
+    [createMesh],
+  );
 
   const respondEntry = useCallback(
     (participanteId: string, approved: boolean) => {

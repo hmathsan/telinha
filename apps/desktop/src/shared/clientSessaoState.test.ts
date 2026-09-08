@@ -107,6 +107,25 @@ describe("sessaoReducer", () => {
     expect(state.sessaoEndedReason).toBe("anfitriao-left");
   });
 
+  it("resets to the entry screen with the disconnect reason when the connection is terminated mid-sessao", () => {
+    const populated: ClientSessaoState = {
+      ...initialClientSessaoState,
+      screen: "sessao",
+      myId: "p2",
+      roster: [{ id: "p2", name: "Beto" }],
+    };
+    const state = sessaoReducer(populated, { source: "connection-terminated", reason: "removido-da-sessao" });
+    expect(state.screen).toBe("entry");
+    expect(state.myId).toBeNull();
+    expect(state.lastDisconnectReason).toBe("removido-da-sessao");
+  });
+
+  it("ignores a connection-terminated action once already back on the entry screen with a more specific reason", () => {
+    const alreadyOnEntry = signaler(initialClientSessaoState, { type: "entry-refused", reason: "sessao-full" });
+    const state = sessaoReducer(alreadyOnEntry, { source: "connection-terminated", reason: "sessao-encerrada" });
+    expect(state).toBe(alreadyOnEntry);
+  });
+
   it("caches ice servers as they arrive", () => {
     const state = signaler(initialClientSessaoState, {
       type: "ice-servers",

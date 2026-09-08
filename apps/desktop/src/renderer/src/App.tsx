@@ -10,6 +10,7 @@ export function App() {
       <EntryScreen
         entryError={sessao.state.entryError}
         sessaoEndedReason={sessao.state.sessaoEndedReason}
+        lastDisconnectReason={sessao.state.lastDisconnectReason}
         onConnect={sessao.connect}
       />
     );

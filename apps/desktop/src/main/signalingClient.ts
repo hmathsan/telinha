@@ -28,6 +28,19 @@ function initialMessage(action: ConnectAction): AppToSignalerMessage {
 }
 
 /**
+ * Motivos com que o Durable Object fecha o WebSocket deliberadamente (ver `durableObject.ts`:
+ * `safeClose`/`stripAndClose`). Reconectar depois de um destes tentaria reentrar numa Sessão que
+ * já não quer este Participante, ou que já terminou — bem diferente de uma queda de rede, que é
+ * o alvo real da camada 2 de reconexão (spec 0003).
+ */
+const TERMINAL_CLOSE_REASONS = new Set([
+  "removido-da-sessao",
+  "sessao-encerrada",
+  "incompatible-version",
+  "invalid-code",
+]);
+
+/**
  * Cliente WebSocket do processo principal (spec 0002, "Configuração"). Só o pathway `join`
  * reconecta com backoff sozinho (spec 0003, "Reconexão", camada 2) — um `create` reconectando
  * silenciosamente trocaria todo mundo de Código de Sessão sem aviso, então uma queda nesse
@@ -103,19 +116,23 @@ export class SignalingClient {
       }
     });
 
-    ws.on("close", () => this.handleClosed(action));
+    ws.on("close", (_code: number, reasonBuffer: Buffer) => this.handleClosed(action, reasonBuffer.toString()));
     ws.on("error", () => {
       // "close" always follows "error" for the `ws` client; the reconnect logic lives there.
     });
   }
 
-  private handleClosed(action: ConnectAction): void {
+  private handleClosed(action: ConnectAction, reason: string): void {
     if (this.ws) this.ws = null;
     if (this.deliberateClose) {
       return;
     }
+    if (TERMINAL_CLOSE_REASONS.has(reason)) {
+      this.handlers.onConnectionState({ status: "closed", reason });
+      return;
+    }
     if (action.kind === "create") {
-      this.handlers.onConnectionState({ status: "closed", reason: "anfitriao-connection-lost" });
+      this.handlers.onConnectionState({ status: "closed", reason: reason || "anfitriao-connection-lost" });
       return;
     }
 

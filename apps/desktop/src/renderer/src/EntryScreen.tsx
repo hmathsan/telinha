@@ -13,15 +13,22 @@ const SESSAO_ENDED_MESSAGES: Record<SessaoEndedReason, string> = {
   "anfitriao-left": "O Anfitrião saiu e a Sessão terminou.",
 };
 
+const DISCONNECT_REASON_MESSAGES: Record<string, string> = {
+  "removido-da-sessao": "Você foi removido da Sessão pelo Anfitrião.",
+  "sessao-encerrada": "A Sessão terminou.",
+  "anfitriao-connection-lost": "A conexão com a Sessão foi perdida.",
+};
+
 const NAME_STORAGE_KEY = "pvt-broadcast:name";
 
 export interface EntryScreenProps {
   readonly entryError: EntryRefusedReason | null;
   readonly sessaoEndedReason: SessaoEndedReason | null;
+  readonly lastDisconnectReason: string | null;
   readonly onConnect: (action: ConnectAction) => void;
 }
 
-export function EntryScreen({ entryError, sessaoEndedReason, onConnect }: EntryScreenProps) {
+export function EntryScreen({ entryError, sessaoEndedReason, lastDisconnectReason, onConnect }: EntryScreenProps) {
   const [name, setName] = useState(() => localStorage.getItem(NAME_STORAGE_KEY) ?? "");
   const [codigoDeSessao, setCodigoDeSessao] = useState("");
 
@@ -35,6 +42,9 @@ export function EntryScreen({ entryError, sessaoEndedReason, onConnect }: EntryS
       <h1>pvt-broadcast</h1>
       {sessaoEndedReason && <p style={{ color: "#b45309" }}>{SESSAO_ENDED_MESSAGES[sessaoEndedReason]}</p>}
       {entryError && <p style={{ color: "#dc2626" }}>{ENTRY_ERROR_MESSAGES[entryError]}</p>}
+      {lastDisconnectReason && (
+        <p style={{ color: "#b45309" }}>{DISCONNECT_REASON_MESSAGES[lastDisconnectReason] ?? "Você saiu da Sessão."}</p>
+      )}
 
       <label>
         Seu nome
