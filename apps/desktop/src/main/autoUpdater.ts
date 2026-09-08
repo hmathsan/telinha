@@ -1,5 +1,9 @@
 import { app } from "electron";
-import { autoUpdater } from "electron-updater";
+import electronUpdater from "electron-updater";
+
+// electron-updater é CommonJS; a interop do ESM do Node não expõe `autoUpdater` como named
+// export (SyntaxError em runtime), só o default.
+const { autoUpdater } = electronUpdater;
 
 /**
  * Checagem silenciosa em segundo plano: baixa a atualização sem perguntar nada, e ela só é
