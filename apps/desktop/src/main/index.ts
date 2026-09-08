@@ -1,6 +1,7 @@
 import { app, BrowserWindow, ipcMain, session } from "electron";
 import type { AppToSignalerMessage } from "@pvt-broadcast/protocol";
 import { enableWindowsGraphicsCapture } from "./wgcFlags.js";
+import { applyDebugEncoderOverrides } from "./debugSwitches.js";
 import { createMainWindow } from "./mainWindow.js";
 import { openFontePicker } from "./sourcePicker.js";
 import { SignalingClient } from "./signalingClient.js";
@@ -9,6 +10,7 @@ import { IPC_CHANNELS, type ConnectAction, type DiagnosticsExportRequest } from 
 
 // Precisa rodar antes de app.whenReady() (spec 0003, "A captura de janela precisa de WGC").
 enableWindowsGraphicsCapture();
+applyDebugEncoderOverrides();
 
 const SIGNALER_URL = import.meta.env.MAIN_VITE_SIGNALER_URL ?? "ws://localhost:8787";
 

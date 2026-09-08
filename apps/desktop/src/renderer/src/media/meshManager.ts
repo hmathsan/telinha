@@ -1,4 +1,5 @@
 import { buildEncodingParameters, MAX_BITRATE_BPS } from "../../../shared/media/bitrate.js";
+import { preferH264 } from "../../../shared/media/codecPreference.js";
 import { DiagnosticsSampler, didFallBackToSoftwareEncoder, type ConnectionDiagnosticsSnapshot } from "../../../shared/media/diagnostics.js";
 import {
   connectionKey,
@@ -180,7 +181,10 @@ export class MeshManager {
     this.connections.set(key, entry);
 
     for (const track of this.localStream.getTracks()) {
-      const sender = pc.addTrack(track, this.localStream);
+      const transceiver = pc.addTransceiver(track, { direction: "sendonly", streams: [this.localStream] });
+      this.applyPreferredCodecs(transceiver);
+
+      const sender = transceiver.sender;
       const params = sender.getParameters();
       params.encodings = buildEncodingParameters(MAX_BITRATE_BPS);
       void sender.setParameters(params).catch(() => {
@@ -206,6 +210,22 @@ export class MeshManager {
 
   private createPeerConnection(): RTCPeerConnection {
     return new RTCPeerConnection({ iceServers: this.iceServers });
+  }
+
+  /**
+   * Sem isso, o Chromium tende a oferecer VP8 primeiro, cujo encoder no WebRTC dele nunca tem
+   * caminho de hardware — `encoderImplementation` seria sempre `libvpx`, mascarando o teto de
+   * sessões NVENC que a ADR 0002 descreve. Só faz sentido no lado que envia.
+   */
+  private applyPreferredCodecs(transceiver: RTCRtpTransceiver): void {
+    if (typeof transceiver.setCodecPreferences !== "function") return;
+    const capabilities = RTCRtpSender.getCapabilities("video");
+    if (!capabilities) return;
+    try {
+      transceiver.setCodecPreferences(preferH264(capabilities.codecs));
+    } catch {
+      // Motor recusou a lista reordenada; segue com a ordem padrão dele.
+    }
   }
 
   private wireConnection(entry: ManagedConnection): void {

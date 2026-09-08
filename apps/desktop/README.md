@@ -35,3 +35,18 @@ Precisa de um sinalizador rodando (`npm run dev` em `apps/signaler`, que sobe `w
 A spec 0003 lista fatos que só se confirmam rodando de verdade — ver "Pronto quando" em
 [0003-malha-de-midia.md](../../docs/specs/0003-malha-de-midia.md). Este código implementa o que
 a spec pede; não substitui essa validação.
+
+Para forçar a queda para encoder por software (`encoderImplementation` virando `OpenH264`) e
+testar o aviso do indicador de qualidade: `--disable-accelerated-video-encode` é uma flag do
+Chromium, e nem o npm nem o `electron-vite dev` a repassam para o processo do Electron que
+lançam. Use a variável de ambiente:
+
+```
+PVT_BROADCAST_DISABLE_HW_ENCODE=1 npm run dev -w @pvt-broadcast/desktop
+```
+
+No PowerShell:
+
+```
+$env:PVT_BROADCAST_DISABLE_HW_ENCODE = '1'; npm run dev -w @pvt-broadcast/desktop
+```
