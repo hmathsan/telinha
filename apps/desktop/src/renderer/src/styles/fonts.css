@@ -1,0 +1,32 @@
+/*
+ * Inter, vendorizado como `.woff2` em `./fonts/`.
+ *
+ * Não é preferência: o `index.html` roda com `default-src 'self'` e o `<link>` do Google Fonts
+ * é bloqueado por essa CSP. Afrouxá-la faria um app desktop depender da rede para renderizar
+ * texto; cair para `system-ui` descaracterizaria um sistema construído sobre o Inter em peso 500.
+ * Vendorizar custa ~72 KB e nenhuma das duas coisas.
+ */
+
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+  src: url("./fonts/inter-400.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 500;
+  font-display: block;
+  src: url("./fonts/inter-500.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 600;
+  font-display: block;
+  src: url("./fonts/inter-600.woff2") format("woff2");
+}

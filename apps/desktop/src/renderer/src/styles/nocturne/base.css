@@ -1,0 +1,92 @@
+/*
+ * Nocturne — base
+ *
+ * Só tema escuro: o sistema é escuro por construção e o app não tem alternância, então não há
+ * `prefers-color-scheme` em lugar nenhum.
+ */
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  font-size: var(--font-size-md);
+  line-height: var(--font-leading-normal);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  margin: 0;
+  font-weight: var(--font-weight-medium);
+  line-height: var(--font-leading-tight);
+  letter-spacing: var(--font-tracking-tight);
+}
+
+h1 {
+  font-size: var(--font-size-2xl);
+}
+
+h2 {
+  font-size: var(--font-size-xl);
+}
+
+h3 {
+  font-size: var(--font-size-lg);
+}
+
+h4 {
+  font-size: var(--font-size-md);
+}
+
+p {
+  margin: 0;
+}
+
+/*
+ * Estado de foco nunca é o padrão do navegador: o anel de acento de 2px vale para todo elemento
+ * interativo, inclusive os que não vestem `.btn` — as miniaturas e as células da Grade são
+ * `<button>` e precisam do mesmo anel.
+ */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: var(--focus-ring-width) solid var(--color-focus);
+  outline-offset: var(--focus-ring-offset);
+}
+
+:where(a, button, input, select, textarea, summary, [tabindex]):focus:not(:focus-visible) {
+  outline: none;
+}
+
+::selection {
+  background: var(--color-accent-300);
+  color: var(--color-neutral-900);
+}
+
+::-webkit-scrollbar {
+  width: var(--space-3);
+  height: var(--space-3);
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  border-radius: var(--radius-full);
+  background: var(--color-neutral-400);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-neutral-500);
+}

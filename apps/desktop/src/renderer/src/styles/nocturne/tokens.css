@@ -1,0 +1,122 @@
+/*
+ * Nocturne — tokens
+ *
+ * Sistema escuro, compacto e de baixa saturação. O contraste vem das rampas tonais, não da
+ * saturação; o acento é linha e brilho, nunca preenchimento de área grande.
+ *
+ * As rampas vão de 100 (mais escuro) a 900 (mais claro) — em um sistema escuro por construção,
+ * número baixo é luminância baixa.
+ */
+
+:root {
+  /* ── Cor ───────────────────────────────────────────────────────────────── */
+
+  /* Neutro (H 232) — 200 é o fundo do app. */
+  --color-neutral-100: #0d0e17;
+  --color-neutral-200: #161826;
+  --color-neutral-300: #1f2232;
+  --color-neutral-400: #2d3043;
+  --color-neutral-500: #3f435a;
+  --color-neutral-600: #5c607a;
+  --color-neutral-700: #868aa2;
+  --color-neutral-800: #b9bbcb;
+  --color-neutral-900: #e9eaf1;
+
+  /* Acento (H 249) — 500 é o acento único do sistema. */
+  --color-accent-100: #201d35;
+  --color-accent-200: #2e284d;
+  --color-accent-300: #403772;
+  --color-accent-400: #5647ae;
+  --color-accent-500: #9184d9;
+  --color-accent-600: #aaa0e4;
+  --color-accent-700: #c5beef;
+  --color-accent-800: #dad5f6;
+  --color-accent-900: #ece9fb;
+
+  /* Estado — três degraus cada, na mesma saturação baixa das rampas principais. */
+  --color-danger-300: #6f312a;
+  --color-danger-500: #d26256;
+  --color-danger-700: #f0afa8;
+
+  --color-warn-300: #735726;
+  --color-warn-500: #d6a651;
+  --color-warn-700: #f1d6a7;
+
+  --color-ok-300: #2b6449;
+  --color-ok-500: #4ebc88;
+  --color-ok-700: #9fdfc1;
+
+  /* Semânticos — é por aqui que a interface pega cor; as rampas ficam para casos pontuais. */
+  --color-bg: var(--color-neutral-200);
+  --color-surface: var(--color-neutral-300);
+  --color-surface-raised: var(--color-neutral-400);
+  --color-well: var(--color-neutral-100);
+  --color-border: var(--color-neutral-400);
+  --color-border-strong: var(--color-neutral-500);
+  --color-text: var(--color-neutral-900);
+  --color-text-muted: var(--color-neutral-700);
+  --color-text-dim: var(--color-neutral-600);
+  --color-accent: var(--color-accent-500);
+  --color-accent-quiet: var(--color-accent-200);
+  --color-focus: var(--color-accent-500);
+  --color-scrim: rgb(6 7 13 / 0.72);
+
+  /* ── Tipografia ────────────────────────────────────────────────────────── */
+
+  --font-sans: "Inter", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "Cascadia Mono", "Consolas", ui-monospace, monospace;
+
+  --font-size-xs: 0.6875rem;
+  --font-size-sm: 0.75rem;
+  --font-size-md: 0.8125rem;
+  --font-size-lg: 0.9375rem;
+  --font-size-xl: 1.125rem;
+  --font-size-2xl: 1.5rem;
+
+  /* Título não passa de 500: a hierarquia aqui é tamanho e espaço. */
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+
+  --font-leading-tight: 1.2;
+  --font-leading-normal: 1.5;
+
+  --font-tracking-tight: -0.01em;
+  --font-tracking-wide: 0.08em;
+
+  /* ── Espaço ────────────────────────────────────────────────────────────── */
+
+  /* Densidade 0,70×: a escala de 4px multiplicada, num único lugar. */
+  --space-density: 0.7;
+  --space-unit: calc(4px * var(--space-density));
+
+  --space-0: 0;
+  --space-1: calc(var(--space-unit) * 1);
+  --space-2: calc(var(--space-unit) * 2);
+  --space-3: calc(var(--space-unit) * 3);
+  --space-4: calc(var(--space-unit) * 4);
+  --space-5: calc(var(--space-unit) * 6);
+  --space-6: calc(var(--space-unit) * 8);
+  --space-7: calc(var(--space-unit) * 12);
+  --space-8: calc(var(--space-unit) * 16);
+
+  /* ── Raio ──────────────────────────────────────────────────────────────── */
+
+  --radius-sm: 4px;
+  --radius-md: 7px;
+  --radius-lg: 12px;
+  --radius-full: 999px;
+
+  /* ── Sombra ────────────────────────────────────────────────────────────── */
+
+  --shadow-sm: 0 1px 2px rgb(6 7 13 / 0.4);
+  --shadow-md: 0 6px 16px -4px rgb(6 7 13 / 0.55);
+  --shadow-lg: 0 20px 48px -12px rgb(6 7 13 / 0.7);
+  --shadow-glow: 0 0 0 1px var(--color-accent-400), 0 0 18px -4px var(--color-accent-400);
+
+  /* ── Estados ───────────────────────────────────────────────────────────── */
+
+  --focus-ring-width: 2px;
+  --focus-ring-offset: 2px;
+  --disabled-opacity: 0.45;
+}

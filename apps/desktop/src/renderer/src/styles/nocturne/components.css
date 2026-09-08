@@ -1,0 +1,386 @@
+/*
+ * Nocturne — componentes
+ *
+ * Esta camada entra como veio. Ela já resolve hover, pressionado, `:focus-visible` com anel de
+ * 2px e `disabled` a 45% de opacidade — o conjunto de estados que se perde quando alguém
+ * reescreve um botão em utilitários e testa só o estado normal.
+ */
+
+/* ── Botão ──────────────────────────────────────────────────────────────── */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-text);
+  font-family: inherit;
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--font-leading-tight);
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease,
+    color 120ms ease;
+}
+
+.btn:focus-visible {
+  outline: var(--focus-ring-width) solid var(--color-focus);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.btn:disabled,
+.btn[aria-disabled="true"] {
+  opacity: var(--disabled-opacity);
+  cursor: not-allowed;
+}
+
+/* O acento é linha e brilho: o primário é fundo tonal com borda de acento, não área saturada. */
+.btn-primary {
+  border-color: var(--color-accent-400);
+  background: var(--color-accent-200);
+  color: var(--color-accent-800);
+}
+
+.btn-primary:hover:not(:disabled) {
+  border-color: var(--color-accent-500);
+  background: var(--color-accent-300);
+  color: var(--color-accent-900);
+}
+
+.btn-primary:active:not(:disabled) {
+  background: var(--color-accent-200);
+  border-color: var(--color-accent-400);
+}
+
+.btn-secondary {
+  border-color: var(--color-border-strong);
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  border-color: var(--color-neutral-600);
+  background: var(--color-neutral-500);
+}
+
+.btn-secondary:active:not(:disabled) {
+  background: var(--color-surface-raised);
+}
+
+.btn-ghost {
+  border-color: transparent;
+  background: transparent;
+  color: var(--color-text-muted);
+}
+
+.btn-ghost:hover:not(:disabled) {
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+}
+
+.btn-ghost:active:not(:disabled) {
+  background: var(--color-surface);
+}
+
+.btn-danger {
+  border-color: var(--color-danger-300);
+  background: transparent;
+  color: var(--color-danger-700);
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: var(--color-danger-300);
+  color: var(--color-neutral-900);
+}
+
+.btn-danger:active:not(:disabled) {
+  background: transparent;
+  color: var(--color-danger-700);
+}
+
+.btn-icon {
+  padding: var(--space-2);
+  aspect-ratio: 1;
+  border-radius: var(--radius-md);
+}
+
+.btn-block {
+  display: flex;
+  width: 100%;
+}
+
+.btn-sm {
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--font-size-sm);
+}
+
+/* ── Campo ──────────────────────────────────────────────────────────────── */
+
+.input {
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-well);
+  color: var(--color-text);
+  font-family: inherit;
+  font-size: var(--font-size-md);
+  line-height: var(--font-leading-normal);
+  transition:
+    border-color 120ms ease,
+    background-color 120ms ease;
+}
+
+.input::placeholder {
+  color: var(--color-text-dim);
+}
+
+.input:hover:not(:disabled) {
+  border-color: var(--color-border-strong);
+}
+
+.input:focus-visible {
+  border-color: var(--color-accent-400);
+  outline: var(--focus-ring-width) solid var(--color-focus);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.input:disabled {
+  opacity: var(--disabled-opacity);
+  cursor: not-allowed;
+}
+
+.input-code {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xl);
+  letter-spacing: var(--font-tracking-wide);
+  text-transform: uppercase;
+}
+
+/* `.field` embrulha rótulo, controle e a linha de apoio ou de erro. */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.field-label {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+}
+
+.field-hint {
+  color: var(--color-text-dim);
+  font-size: var(--font-size-sm);
+}
+
+/* ── Cartão ─────────────────────────────────────────────────────────────── */
+
+.card {
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+.card-accent {
+  border-color: var(--color-accent-300);
+  background: var(--color-accent-100);
+}
+
+.card-warn {
+  border-color: var(--color-warn-300);
+  color: var(--color-warn-700);
+}
+
+.card-danger {
+  border-color: var(--color-danger-300);
+  color: var(--color-danger-700);
+}
+
+.card-quiet {
+  background: transparent;
+  border-style: dashed;
+  color: var(--color-text-muted);
+}
+
+/* ── Tabela ─────────────────────────────────────────────────────────────── */
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-size-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.table th {
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-text-dim);
+  font-weight: var(--font-weight-medium);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.table td {
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--color-neutral-300);
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.table tbody tr:hover td {
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+/* ── Diálogo ────────────────────────────────────────────────────────────── */
+
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-6);
+  background: var(--color-scrim);
+}
+
+.dialog {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  width: 100%;
+  max-height: 100%;
+  padding: var(--space-5);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg);
+  box-shadow: var(--shadow-lg);
+}
+
+.dialog-title {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-medium);
+}
+
+.dialog-subtitle {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.dialog-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-3);
+}
+
+/* ── Etiqueta ───────────────────────────────────────────────────────────── */
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  line-height: var(--font-leading-tight);
+  white-space: nowrap;
+}
+
+.tag-accent {
+  border-color: var(--color-accent-300);
+  color: var(--color-accent-600);
+}
+
+.tag-warn {
+  border-color: var(--color-warn-300);
+  color: var(--color-warn-500);
+}
+
+.tag-danger {
+  border-color: var(--color-danger-300);
+  color: var(--color-danger-500);
+}
+
+.tag-ok {
+  border-color: var(--color-ok-300);
+  color: var(--color-ok-500);
+}
+
+/* Etiqueta clicável: mesmos estados do botão, mantida na forma de pílula. */
+button.tag {
+  cursor: pointer;
+  font-family: inherit;
+  transition:
+    border-color 120ms ease,
+    color 120ms ease;
+}
+
+button.tag:hover:not(:disabled) {
+  border-color: var(--color-border-strong);
+  color: var(--color-text);
+}
+
+button.tag:focus-visible {
+  outline: var(--focus-ring-width) solid var(--color-focus);
+  outline-offset: var(--focus-ring-offset);
+}
+
+button.tag:disabled {
+  opacity: var(--disabled-opacity);
+  cursor: not-allowed;
+}
+
+/* Ponto de estado, usado dentro de `.tag` e nas legendas de vídeo. */
+.dot {
+  flex: 0 0 auto;
+  width: var(--space-2);
+  height: var(--space-2);
+  border-radius: var(--radius-full);
+  background: currentColor;
+}
+
+.dot-live {
+  background: var(--color-danger-500);
+  animation: nocturne-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes nocturne-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dot-live {
+    animation: none;
+  }
+}

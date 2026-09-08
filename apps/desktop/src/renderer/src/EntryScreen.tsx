@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { EntryRefusedReason, SessaoEndedReason } from "@pvt-broadcast/protocol";
 import type { ConnectAction } from "../../shared/ipc.js";
+import { IconWarningCircle } from "./components/icons/index.js";
 
 const ENTRY_ERROR_MESSAGES: Record<EntryRefusedReason, string> = {
   "incompatible-version": "Atualize o aplicativo para entrar nesta Sessão.",
@@ -21,6 +22,15 @@ const DISCONNECT_REASON_MESSAGES: Record<string, string> = {
 
 const NAME_STORAGE_KEY = "pvt-broadcast:name";
 
+function Notice({ tone, children }: { readonly tone: "warn" | "danger"; readonly children: string }) {
+  return (
+    <p className={`card ${tone === "danger" ? "card-danger" : "card-warn"} flex items-center gap-3 text-sm`}>
+      <IconWarningCircle />
+      <span>{children}</span>
+    </p>
+  );
+}
+
 export interface EntryScreenProps {
   readonly entryError: EntryRefusedReason | null;
   readonly sessaoEndedReason: SessaoEndedReason | null;
@@ -38,40 +48,44 @@ export function EntryScreen({ entryError, sessaoEndedReason, lastDisconnectReaso
   }
 
   return (
-    <div style={{ fontFamily: "system-ui, sans-serif", maxWidth: 360, margin: "80px auto", display: "flex", flexDirection: "column", gap: 16 }}>
-      <h1>pvt-broadcast</h1>
-      {sessaoEndedReason && <p style={{ color: "#b45309" }}>{SESSAO_ENDED_MESSAGES[sessaoEndedReason]}</p>}
-      {entryError && <p style={{ color: "#dc2626" }}>{ENTRY_ERROR_MESSAGES[entryError]}</p>}
-      {lastDisconnectReason && (
-        <p style={{ color: "#b45309" }}>{DISCONNECT_REASON_MESSAGES[lastDisconnectReason] ?? "Você saiu da Sessão."}</p>
-      )}
+    <div className="flex min-h-screen justify-center px-6 py-20">
+      <div className="entry-column flex flex-col gap-6">
+        <h1>pvt-broadcast</h1>
 
-      <label>
-        Seu nome
-        <input value={name} onChange={(e) => persistName(e.target.value)} style={{ display: "block", width: "100%" }} />
-      </label>
+        {sessaoEndedReason && <Notice tone="warn">{SESSAO_ENDED_MESSAGES[sessaoEndedReason]}</Notice>}
+        {entryError && <Notice tone="danger">{ENTRY_ERROR_MESSAGES[entryError]}</Notice>}
+        {lastDisconnectReason && (
+          <Notice tone="warn">{DISCONNECT_REASON_MESSAGES[lastDisconnectReason] ?? "Você saiu da Sessão."}</Notice>
+        )}
 
-      <button disabled={!name.trim()} onClick={() => onConnect({ kind: "create", name: name.trim() })}>
-        Criar Sessão
-      </button>
+        <label className="field">
+          <span className="field-label">Seu nome</span>
+          <input className="input" value={name} onChange={(e) => persistName(e.target.value)} />
+        </label>
 
-      <hr />
+        <button className="btn btn-primary btn-block" disabled={!name.trim()} onClick={() => onConnect({ kind: "create", name: name.trim() })}>
+          Criar Sessão
+        </button>
 
-      <label>
-        Código de Sessão
-        <input
-          value={codigoDeSessao}
-          onChange={(e) => setCodigoDeSessao(e.target.value.toUpperCase())}
-          maxLength={6}
-          style={{ display: "block", width: "100%", textTransform: "uppercase" }}
-        />
-      </label>
-      <button
-        disabled={!name.trim() || codigoDeSessao.length !== 6}
-        onClick={() => onConnect({ kind: "join", name: name.trim(), codigoDeSessao })}
-      >
-        Entrar
-      </button>
+        <hr className="border-0 border-t border-t-border" />
+
+        <label className="field">
+          <span className="field-label">Código de Sessão</span>
+          <input
+            className="input input-code"
+            value={codigoDeSessao}
+            onChange={(e) => setCodigoDeSessao(e.target.value.toUpperCase())}
+            maxLength={6}
+          />
+        </label>
+        <button
+          className="btn btn-secondary btn-block"
+          disabled={!name.trim() || codigoDeSessao.length !== 6}
+          onClick={() => onConnect({ kind: "join", name: name.trim(), codigoDeSessao })}
+        >
+          Entrar
+        </button>
+      </div>
     </div>
   );
 }

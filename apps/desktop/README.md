@@ -2,14 +2,18 @@
 
 Electron + electron-vite + React. A malha de mídia é a spec
 [0003](../../docs/specs/0003-malha-de-midia.md), a interface é a spec
-[0004](../../docs/specs/0004-interface.md), e o empacotamento (`electron-builder`,
-`electron-updater`) é a spec [0005](../../docs/specs/0005-empacotamento.md).
+[0004](../../docs/specs/0004-interface.md), o empacotamento (`electron-builder`,
+`electron-updater`) é a spec [0005](../../docs/specs/0005-empacotamento.md), e o sistema visual
+(Nocturne + Tailwind) é a spec [0007](../../docs/specs/0007-sistema-visual.md).
 
 - `src/main` — processo principal: flags do WGC, o `setDisplayMediaRequestHandler` que abre a
   grade de Fontes própria, o cliente WebSocket de sinalização (spec 0002: "o cliente é um
   WebSocket do processo principal, não um navegador") e a exportação de diagnóstico.
 - `src/preload` — bridge de contexto único para a janela principal e para a grade de Fontes.
 - `src/renderer` — React: telas de entrada/Sessão e a malha WebRTC (`src/renderer/src/media`).
+  `src/renderer/src/styles` guarda o sistema visual: os tokens e componentes do Nocturne, o Inter
+  vendorizado em `.woff2` (a CSP `default-src 'self'` bloqueia o Google Fonts) e a folha que
+  apelida os tokens para o Tailwind. `components/icons` traz os traçados do Phosphor inline.
 - `src/shared` — lógica pura, testável em Node sem Electron/DOM/WebRTC: backoff de reconexão,
   detecção de relay, amostragem de diagnóstico, política de reconexão por ICE, teto de bitrate,
   validação do payload de sinalização da malha, e o reducer que espelha o estado da Sessão do

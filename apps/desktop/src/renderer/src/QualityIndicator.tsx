@@ -19,32 +19,8 @@ export function QualityIndicator({ frameWidth, frameHeight, framesPerSecond, deg
   const isWarning = degraded || relayed;
 
   return (
-    <button
-      onClick={onClick}
-      title="Ver diagnóstico"
-      style={{
-        alignSelf: "flex-start",
-        display: "flex",
-        alignItems: "center",
-        gap: 6,
-        background: "none",
-        border: "1px solid #3a3c42",
-        borderRadius: 999,
-        padding: "4px 10px",
-        color: isWarning ? "#f59e0b" : "#9ca3af",
-        fontSize: 12,
-        cursor: "pointer",
-      }}
-    >
-      <span
-        style={{
-          width: 8,
-          height: 8,
-          borderRadius: "50%",
-          background: isWarning ? "#f59e0b" : "#22c55e",
-          flex: "0 0 auto",
-        }}
-      />
+    <button type="button" className={`tag self-start ${isWarning ? "tag-warn" : "tag-ok"}`} onClick={onClick} title="Ver diagnóstico">
+      <span className="dot" />
       <span>
         {resolution} · {fps}
       </span>

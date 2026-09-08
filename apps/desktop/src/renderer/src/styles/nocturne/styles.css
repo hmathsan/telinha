@@ -1,0 +1,11 @@
+/*
+ * Nocturne — sistema visual do app, vendorizado.
+ *
+ * Duas camadas, e as duas entram: os tokens (`tokens.css`) e os componentes (`components.css`),
+ * com `base.css` ligando uma à outra no documento. Trocar de sistema de design é reescrever
+ * estes arquivos, não caçar cor em trinta componentes.
+ */
+
+@import "./tokens.css";
+@import "./base.css";
+@import "./components.css";

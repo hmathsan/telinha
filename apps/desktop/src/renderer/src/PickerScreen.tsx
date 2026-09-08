@@ -1,33 +1,19 @@
 import { useEffect, useMemo, useState } from "react";
 import type { FontePickerItem } from "../../shared/ipc.js";
+import { IconAppWindow, IconMonitor } from "./components/icons/index.js";
 
 function SourceGrid({ items }: { readonly items: readonly FontePickerItem[] }) {
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 12 }}>
+    <div className="source-grid">
       {items.map((source) => (
         <button
           key={source.id}
+          type="button"
+          className="card flex min-w-0 cursor-pointer flex-col gap-2 p-2 text-left"
           onClick={() => window.picker.choose(source.id)}
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: 6,
-            padding: 8,
-            background: "#2b2d31",
-            border: "1px solid #3a3c42",
-            borderRadius: 8,
-            color: "inherit",
-            cursor: "pointer",
-            textAlign: "left",
-            minWidth: 0,
-          }}
         >
-          <img
-            src={source.thumbnailDataUrl}
-            alt={source.name}
-            style={{ width: "100%", aspectRatio: "16 / 9", objectFit: "cover", borderRadius: 4, background: "#111" }}
-          />
-          <span style={{ fontSize: 13, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{source.name}</span>
+          <img src={source.thumbnailDataUrl} alt={source.name} className="aspect-video w-full rounded-sm bg-well object-cover" />
+          <span className="overflow-hidden text-sm text-ellipsis whitespace-nowrap">{source.name}</span>
         </button>
       ))}
     </div>
@@ -44,38 +30,32 @@ export function PickerScreen() {
   const windows = useMemo(() => sources.filter((s) => s.kind === "window"), [sources]);
 
   return (
-    <div
-      style={{
-        fontFamily: "system-ui, sans-serif",
-        background: "#1e1f22",
-        color: "#eee",
-        height: "100vh",
-        boxSizing: "border-box",
-        display: "flex",
-        flexDirection: "column",
-        padding: 16,
-        gap: 12,
-      }}
-    >
-      <h2 style={{ margin: 0, flex: "0 0 auto" }}>Escolher Fonte</h2>
+    <div className="flex h-screen flex-col gap-3 p-4">
+      <h2 className="flex-none">Escolher Fonte</h2>
 
-      <div style={{ flex: "1 1 auto", minHeight: 0, overflowY: "auto", display: "flex", flexDirection: "column", gap: 20 }}>
+      <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto">
         {screens.length > 0 && (
-          <section>
-            <h3 style={{ margin: "0 0 8px", fontSize: 13, color: "#9ca3af", fontWeight: 600 }}>MONITORES</h3>
+          <section className="flex flex-col gap-2">
+            <h3 className="section-label">
+              <IconMonitor /> Monitores
+            </h3>
             <SourceGrid items={screens} />
           </section>
         )}
         {windows.length > 0 && (
-          <section>
-            <h3 style={{ margin: "0 0 8px", fontSize: 13, color: "#9ca3af", fontWeight: 600 }}>JANELAS</h3>
+          <section className="flex flex-col gap-2">
+            <h3 className="section-label">
+              <IconAppWindow /> Janelas
+            </h3>
             <SourceGrid items={windows} />
           </section>
         )}
       </div>
 
-      <div style={{ flex: "0 0 auto", textAlign: "right" }}>
-        <button onClick={() => window.picker.cancel()}>Cancelar</button>
+      <div className="flex flex-none justify-end">
+        <button type="button" className="btn btn-ghost" onClick={() => window.picker.cancel()}>
+          Cancelar
+        </button>
       </div>
     </div>
   );

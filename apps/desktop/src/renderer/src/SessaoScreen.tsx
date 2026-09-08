@@ -10,6 +10,7 @@ import type { QualityWarning } from "./useSessao.js";
 import { VideoTile } from "./VideoTile.js";
 import { QualityIndicator } from "./QualityIndicator.js";
 import { DiagnosticsPanel } from "./DiagnosticsPanel.js";
+import { IconBroadcast, IconSignOut } from "./components/icons/index.js";
 
 export interface SessaoScreenProps {
   readonly state: ClientSessaoState;
@@ -103,38 +104,49 @@ export function SessaoScreen(props: SessaoScreenProps) {
     else void el.requestFullscreen();
   }
 
+  const transmitirButton = props.isTransmitting ? (
+    <button type="button" className="btn btn-secondary" onClick={props.onReleasePalco}>
+      <IconBroadcast />
+      Parar de transmitir
+    </button>
+  ) : (
+    <button type="button" className="btn btn-primary" disabled={palcoOcupado} onClick={props.onStartTransmitindo}>
+      <IconBroadcast />
+      {palcoOcupado ? `${MAX_TRANSMISSORES}/${MAX_TRANSMISSORES} transmitindo` : "Transmitir"}
+    </button>
+  );
+
   return (
-    <div
-      style={{
-        fontFamily: "system-ui, sans-serif",
-        background: "#1e1f22",
-        color: "#eee",
-        height: "100vh",
-        boxSizing: "border-box",
-        display: "flex",
-        flexDirection: "column",
-      }}
-    >
-      <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", borderBottom: "1px solid #2b2d31" }}>
-        <strong>Código de Sessão: {state.codigoDeSessao}</strong>
-        <button onClick={props.onLeave}>Sair</button>
+    <div className="flex h-screen flex-col">
+      <header className="flex flex-none items-center justify-between border-b border-b-border px-4 py-3">
+        <strong className="font-medium">
+          Código de Sessão: <span className="font-mono tracking-wide">{state.codigoDeSessao}</span>
+        </strong>
+        <button type="button" className="btn btn-ghost" onClick={props.onLeave}>
+          <IconSignOut />
+          Sair
+        </button>
       </header>
 
-      {banner && <div style={{ background: "#374151", color: "#fff", padding: 8 }}>{banner}</div>}
+      {banner && <div className="flex-none bg-surface px-4 py-2 text-sm text-text-muted">{banner}</div>}
 
       {state.isAnfitriao &&
         state.pendingEntryRequests.map((request: EntryRequestEntry) => (
-          <div key={request.participanteId} style={{ background: "#1f2937", color: "#fff", padding: 8, margin: "0 16px", marginTop: 12, borderRadius: 4, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div key={request.participanteId} className="card card-accent mx-4 mt-3 flex flex-none items-center justify-between gap-3">
             <span>{request.name} pediu para entrar.</span>
-            <span style={{ display: "flex", gap: 8 }}>
-              <button onClick={() => props.onRespondEntry(request.participanteId, true)}>Aprovar</button>
-              <button onClick={() => props.onRespondEntry(request.participanteId, false)}>Recusar</button>
+            <span className="flex gap-2">
+              <button type="button" className="btn btn-primary btn-sm" onClick={() => props.onRespondEntry(request.participanteId, true)}>
+                Aprovar
+              </button>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => props.onRespondEntry(request.participanteId, false)}>
+                Recusar
+              </button>
             </span>
           </div>
         ))}
 
-      <div style={{ flex: "1 1 auto", minHeight: 0, display: "flex", gap: 16, padding: 16 }}>
-        <div style={{ flex: "1 1 auto", minWidth: 0, display: "flex", flexDirection: "column", gap: 12 }}>
+      <div className="flex min-h-0 flex-1 gap-4 p-4">
+        <div className="flex min-w-0 flex-1 flex-col gap-3">
           <QualityIndicator
             frameWidth={frameWidth}
             frameHeight={frameHeight}
@@ -145,21 +157,19 @@ export function SessaoScreen(props: SessaoScreenProps) {
           />
 
           {orderedTransmissorIds.length === 0 ? (
-            <div style={{ flex: "1 1 auto", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, background: "#111214", color: "#9ca3af", borderRadius: 8 }}>
+            <div className="card card-quiet flex flex-1 flex-col items-center justify-center gap-3">
               <p>Ninguém está transmitindo.</p>
-              <button disabled={palcoOcupado} onClick={props.onStartTransmitindo}>
-                {palcoOcupado ? `${MAX_TRANSMISSORES}/${MAX_TRANSMISSORES} transmitindo` : "Transmitir"}
-              </button>
+              {transmitirButton}
             </div>
           ) : (
-            <div style={{ flex: "1 1 auto", minHeight: 0, display: "flex", flexDirection: "column", gap: 8 }}>
-              <div ref={stageRef} style={{ flex: "1 1 auto", minHeight: 0, background: "#000", borderRadius: 8, display: "flex" }}>
+            <div className="flex min-h-0 flex-1 flex-col gap-2">
+              <div ref={stageRef} className="stage-surface flex min-h-0 flex-1">
                 {stagedId && (
                   <VideoTile stream={streamsById.get(stagedId)!} label={nameOf(state, stagedId)} onDoubleClick={toggleFullscreen} />
                 )}
               </div>
               {thumbnailIds.length > 0 && (
-                <div style={{ display: "flex", gap: 8, overflowX: "auto", flex: "0 0 auto" }}>
+                <div className="flex flex-none gap-2 overflow-x-auto">
                   {thumbnailIds.map((id) => (
                     <VideoTile
                       key={id}
@@ -171,15 +181,7 @@ export function SessaoScreen(props: SessaoScreenProps) {
                   ))}
                 </div>
               )}
-              <div style={{ flex: "0 0 auto" }}>
-                {props.isTransmitting ? (
-                  <button onClick={props.onReleasePalco}>Parar de transmitir</button>
-                ) : (
-                  <button disabled={palcoOcupado} onClick={props.onStartTransmitindo}>
-                    {palcoOcupado ? `${MAX_TRANSMISSORES}/${MAX_TRANSMISSORES} transmitindo` : "Transmitir"}
-                  </button>
-                )}
-              </div>
+              <div className="flex-none">{transmitirButton}</div>
             </div>
           )}
 
@@ -193,17 +195,19 @@ export function SessaoScreen(props: SessaoScreenProps) {
           )}
         </div>
 
-        <aside style={{ flex: "0 0 220px", overflowY: "auto" }}>
-          <h3 style={{ margin: "0 0 8px", fontSize: 13, color: "#9ca3af", fontWeight: 600 }}>PARTICIPANTES</h3>
-          <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 4 }}>
+        <aside className="drawer flex flex-col gap-2">
+          <h3 className="section-label">Participantes</h3>
+          <ul className="m-0 flex list-none flex-col gap-1 p-0">
             {state.roster.map((p) => (
-              <li key={p.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-                <span>
-                  {state.transmissores.includes(p.id) && <span style={{ color: "#ef4444" }}>● </span>}
-                  {p.name}
+              <li key={p.id} className="flex items-center justify-between gap-2">
+                <span className="flex min-w-0 items-center gap-2">
+                  {state.transmissores.includes(p.id) && <span className="dot dot-live" />}
+                  <span className="overflow-hidden text-ellipsis whitespace-nowrap">{p.name}</span>
                 </span>
                 {state.isAnfitriao && p.id !== state.myId && (
-                  <button onClick={() => props.onExpel(p.id)}>expulsar</button>
+                  <button type="button" className="btn btn-danger btn-sm" onClick={() => props.onExpel(p.id)}>
+                    expulsar
+                  </button>
                 )}
               </li>
             ))}

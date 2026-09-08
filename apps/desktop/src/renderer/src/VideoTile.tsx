@@ -17,39 +17,27 @@ export function VideoTile({ stream, label, variant = "stage", onClick, onDoubleC
   }, [stream]);
 
   const isThumbnail = variant === "thumbnail";
+  const frameClass = `video-frame ${isThumbnail ? "video-frame-thumb" : "w-full"}`;
+  const content = (
+    <>
+      <video ref={videoRef} autoPlay playsInline muted />
+      <span className="video-frame-label">{label}</span>
+    </>
+  );
+
+  // Miniatura é um controle: `<button>` para receber foco de teclado e o anel de acento do
+  // Nocturne, como qualquer outro elemento interativo (spec 0007, "Regras").
+  if (onClick) {
+    return (
+      <button type="button" className={`${frameClass} cursor-pointer rounded-md p-0 text-left`} onClick={onClick} onDoubleClick={onDoubleClick}>
+        {content}
+      </button>
+    );
+  }
 
   return (
-    <div
-      onClick={onClick}
-      onDoubleClick={onDoubleClick}
-      style={{
-        position: "relative",
-        width: isThumbnail ? 160 : "100%",
-        flex: isThumbnail ? "0 0 auto" : undefined,
-        cursor: onClick ? "pointer" : onDoubleClick ? "zoom-in" : undefined,
-      }}
-    >
-      <video
-        ref={videoRef}
-        autoPlay
-        playsInline
-        muted
-        style={{ width: "100%", aspectRatio: "16 / 9", objectFit: "cover", background: "#000", borderRadius: 8 }}
-      />
-      <span
-        style={{
-          position: "absolute",
-          left: 8,
-          bottom: 8,
-          background: "rgba(0,0,0,0.6)",
-          color: "#fff",
-          padding: "2px 6px",
-          borderRadius: 4,
-          fontSize: isThumbnail ? 11 : 12,
-        }}
-      >
-        {label}
-      </span>
+    <div className={frameClass} onDoubleClick={onDoubleClick}>
+      {content}
     </div>
   );
 }
