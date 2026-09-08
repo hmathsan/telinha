@@ -11,6 +11,8 @@ export interface ConnectionDiagnosticsSnapshot {
   readonly inboundBitrateBps: number | null;
   readonly packetsLost: number | null;
   readonly framesPerSecond: number | null;
+  readonly frameWidth: number | null;
+  readonly frameHeight: number | null;
   readonly encoderImplementation: string | null;
   readonly qualityLimitationReason: string | null;
   readonly selectedCandidatePair: CandidatePairSummary | null;
@@ -54,12 +56,16 @@ export class DiagnosticsSampler {
         : null;
 
     const framesPerSecond = outbound?.framesPerSecond ?? inbound?.framesPerSecond;
+    const frameWidth = outbound?.frameWidth ?? inbound?.frameWidth;
+    const frameHeight = outbound?.frameHeight ?? inbound?.frameHeight;
 
     return {
       outboundBitrateBps,
       inboundBitrateBps,
       packetsLost: inbound?.packetsLost ?? null,
       framesPerSecond: framesPerSecond ?? null,
+      frameWidth: frameWidth ?? null,
+      frameHeight: frameHeight ?? null,
       encoderImplementation: outbound?.encoderImplementation ?? null,
       qualityLimitationReason: outbound?.qualityLimitationReason ?? null,
       selectedCandidatePair: candidatePairSummary(stats),

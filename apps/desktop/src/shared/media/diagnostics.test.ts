@@ -18,6 +18,8 @@ function outboundStats(overrides: Partial<StatsLike> = {}) {
       bytesSent: 0,
       timestamp: 0,
       framesPerSecond: 30,
+      frameWidth: 1280,
+      frameHeight: 720,
       encoderImplementation: "ExternalEncoder",
       qualityLimitationReason: "none",
       ...overrides,
@@ -31,6 +33,8 @@ describe("DiagnosticsSampler", () => {
     const snapshot = sampler.sample("conn1", outboundStats());
     expect(snapshot.outboundBitrateBps).toBeNull();
     expect(snapshot.framesPerSecond).toBe(30);
+    expect(snapshot.frameWidth).toBe(1280);
+    expect(snapshot.frameHeight).toBe(720);
     expect(snapshot.encoderImplementation).toBe("ExternalEncoder");
     expect(snapshot.qualityLimitationReason).toBe("none");
   });
@@ -62,13 +66,24 @@ describe("DiagnosticsSampler", () => {
     const sampler = new DiagnosticsSampler();
     const stats = (bytesReceived: number, timestamp: number) =>
       statsMap({
-        inbound1: { type: "inbound-rtp", kind: "video", bytesReceived, timestamp, packetsLost: 3, framesPerSecond: 29 },
+        inbound1: {
+          type: "inbound-rtp",
+          kind: "video",
+          bytesReceived,
+          timestamp,
+          packetsLost: 3,
+          framesPerSecond: 29,
+          frameWidth: 960,
+          frameHeight: 540,
+        },
       });
     sampler.sample("conn1", stats(0, 0));
     const snapshot = sampler.sample("conn1", stats(62_500, 1000));
     expect(snapshot.inboundBitrateBps).toBe(500_000);
     expect(snapshot.packetsLost).toBe(3);
     expect(snapshot.framesPerSecond).toBe(29);
+    expect(snapshot.frameWidth).toBe(960);
+    expect(snapshot.frameHeight).toBe(540);
   });
 
   it("surfaces the relay status for the connection via the same snapshot", () => {

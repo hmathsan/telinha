@@ -20,6 +20,8 @@ export interface StatsLike {
   readonly bytesReceived?: number;
   readonly packetsLost?: number;
   readonly framesPerSecond?: number;
+  readonly frameWidth?: number;
+  readonly frameHeight?: number;
   readonly encoderImplementation?: string;
   readonly qualityLimitationReason?: string;
   readonly timestamp?: number;
