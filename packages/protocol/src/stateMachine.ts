@@ -2,6 +2,7 @@ import { MAX_PARTICIPANTES, MAX_TRANSMISSORES } from "./limits.js";
 import type {
   AppToSignalerMessage,
   EntryRefusedReason,
+  ParticipanteLeftReason,
   SignalerToAppMessage,
 } from "./messages.js";
 import { PROTOCOL_VERSION } from "./version.js";
@@ -371,7 +372,16 @@ function processSignal(
   };
 }
 
-function processLeave(state: SessaoState, senderId: string): TransitionResult {
+/**
+ * `reason` distinguishes an explicit `leave` message (the default, `'left'`) from the signaler
+ * noticing a dropped connection (`'disconnected'`) — the anfitriao branch always reports
+ * `'anfitriao-left'` regardless, since that is a property of who left, not how.
+ */
+export function processLeave(
+  state: SessaoState,
+  senderId: string,
+  reason: Extract<ParticipanteLeftReason, "left" | "disconnected"> = "left",
+): TransitionResult {
   const sender = state.participantes.get(senderId);
   if (!sender) {
     return noEffect(state);
@@ -414,7 +424,7 @@ function processLeave(state: SessaoState, senderId: string): TransitionResult {
   const effects: Effect[] = [
     {
       toParticipanteIds: admittedIds(newState),
-      message: { type: "participante-left", participanteId: senderId, reason: "left" },
+      message: { type: "participante-left", participanteId: senderId, reason },
     },
   ];
   if (wasTransmissor) {

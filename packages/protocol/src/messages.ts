@@ -22,6 +22,13 @@ export type SessaoEndedReason = z.infer<typeof sessaoEndedReasonSchema>;
 const palcoDeniedReasonSchema = z.enum(["palco-full"]);
 export type PalcoDeniedReason = z.infer<typeof palcoDeniedReasonSchema>;
 
+const iceServerSchema = z.object({
+  urls: z.union([z.string(), z.array(z.string())]),
+  username: z.string().optional(),
+  credential: z.string().optional(),
+});
+export type IceServer = z.infer<typeof iceServerSchema>;
+
 const participanteSchema = z.object({
   id: participanteIdSchema,
   name: z.string().min(1),
@@ -155,6 +162,15 @@ const palcoDeniedSchema = z.object({
   reason: palcoDeniedReasonSchema,
 });
 
+// Não faz parte da tabela original da spec 0001 — extensão mínima decidida na spec 0002 para
+// carregar as credenciais STUN/TURN que o sinalizador emite ao admitir um Participante (ver
+// "Credenciais TURN e o desligador de gasto" em docs/specs/0002-sinalizador.md). Quando o
+// desligador de gasto está ativo, `iceServers` só contém entradas STUN.
+const iceServersSchema = z.object({
+  type: z.literal("ice-servers"),
+  iceServers: z.array(iceServerSchema),
+});
+
 export const signalerToAppMessageSchema = z.discriminatedUnion("type", [
   sessaoCreatedSchema,
   entryRequestSchema,
@@ -166,6 +182,7 @@ export const signalerToAppMessageSchema = z.discriminatedUnion("type", [
   signalReceivedSchema,
   sessaoEndedSchema,
   palcoDeniedSchema,
+  iceServersSchema,
 ]);
 
 export type SignalerToAppMessage = z.infer<typeof signalerToAppMessageSchema>;
@@ -180,5 +197,6 @@ export type TransmissoresChanged = z.infer<typeof transmissoresChangedSchema>;
 export type SignalReceived = z.infer<typeof signalReceivedSchema>;
 export type SessaoEnded = z.infer<typeof sessaoEndedSchema>;
 export type PalcoDenied = z.infer<typeof palcoDeniedSchema>;
+export type IceServers = z.infer<typeof iceServersSchema>;
 
 export type Participante = z.infer<typeof participanteSchema>;

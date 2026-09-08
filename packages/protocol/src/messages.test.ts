@@ -38,6 +38,13 @@ test("every Signaler -> App message from the spec has a valid schema", () => {
     { type: "signal", fromParticipanteId: idA, payload: { candidate: "..." } },
     { type: "sessao-ended", reason: "anfitriao-left" },
     { type: "palco-denied", reason: "palco-full" },
+    {
+      type: "ice-servers",
+      iceServers: [
+        { urls: "stun:stun.cloudflare.com:3478" },
+        { urls: "turn:turn.cloudflare.com:3478", username: "u", credential: "c" },
+      ],
+    },
   ];
   for (const example of examples) {
     assert.deepEqual(signalerToAppMessageSchema.parse(example), example);

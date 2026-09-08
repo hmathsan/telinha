@@ -2,11 +2,16 @@ name = "pvt-broadcast-signaler"
 main = "src/index.ts"
 compatibility_date = "2026-01-01"
 
-# Durable Object por Sessão — classe implementada pela spec 0002.
-# [[durable_objects.bindings]]
-# name = "SESSAO"
-# class_name = "SessaoDurableObject"
-#
-# [[migrations]]
-# tag = "v1"
-# new_sqlite_classes = ["SessaoDurableObject"]
+[[durable_objects.bindings]]
+name = "SESSAO"
+class_name = "SessaoDurableObject"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["SessaoDurableObject"]
+
+# Desligador de gasto do TURN (ADR 0007). TURN_KEY_ID, TURN_TOKEN, CF_ACCOUNT_ID e
+# CF_ANALYTICS_TOKEN são segredos — `wrangler secret put <nome>` em produção, ou um `.dev.vars`
+# local (não versionado) para `wrangler dev`. Sem eles, o sinalizador devolve só STUN.
+[vars]
+TURN_SPEND_LIMIT_GB = 80

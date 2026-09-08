@@ -3,7 +3,19 @@
   "private": true,
   "version": "0.0.0",
   "description": "Cloudflare Worker + Durable Object por Sessão. Implementado pela spec 0002.",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
   "dependencies": {
     "@pvt-broadcast/protocol": "*"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "^0.22.0",
+    "@cloudflare/workers-types": "^5.20260907.1",
+    "vitest": "^4.1.11",
+    "wrangler": "^4.129.1"
   }
 }

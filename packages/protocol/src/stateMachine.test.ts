@@ -3,7 +3,7 @@ import { test } from "node:test";
 import { randomUUID } from "node:crypto";
 import { MAX_PARTICIPANTES, MAX_TRANSMISSORES } from "./limits.js";
 import type { SessaoState } from "./stateMachine.js";
-import { createSessao, processMessage } from "./stateMachine.js";
+import { createSessao, processLeave, processMessage } from "./stateMachine.js";
 import { PROTOCOL_VERSION } from "./version.js";
 import type { SignalerToAppMessage } from "./messages.js";
 
@@ -273,6 +273,28 @@ test("leave from a regular participante notifies everyone else and frees their p
   assert.equal(left?.reason, "left");
   const [changed] = messagesOfType(result.effects, "transmissores-changed");
   assert.deepEqual(changed?.participanteIds, []);
+});
+
+test("processLeave with reason 'disconnected' reports that instead of 'left'", () => {
+  const { state, anfitriaoId } = newSessao();
+  const { state: withBruno, participanteId: brunoId } = joinAndApprove(state, anfitriaoId, "Bruno");
+
+  const result = processLeave(withBruno, brunoId, "disconnected");
+
+  assert.equal(result.state.participantes.has(brunoId), false);
+  const [left] = messagesOfType(result.effects, "participante-left");
+  assert.equal(left?.reason, "disconnected");
+});
+
+test("processLeave with reason 'disconnected' for the anfitriao still ends the sessao as 'anfitriao-left'", () => {
+  const { state, anfitriaoId } = newSessao();
+  const { state: withBruno } = joinAndApprove(state, anfitriaoId, "Bruno");
+
+  const result = processLeave(withBruno, anfitriaoId, "disconnected");
+
+  assert.equal(result.state.ended, true);
+  const effect = result.effects.find((e) => e.message.type === "sessao-ended");
+  assert.deepEqual((effect?.message as { reason: string }).reason, "anfitriao-left");
 });
 
 test("the anfitriao leaving ends the sessao for everyone", () => {

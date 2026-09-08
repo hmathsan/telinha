@@ -5,6 +5,7 @@ release/
 *.tsbuildinfo
 .env
 .env.*
+.dev.vars
 .wrangler/
 *.log
 .DS_Store
