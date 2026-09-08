@@ -15,6 +15,7 @@ export interface SessaoScreenProps {
   readonly diagnostics: readonly ConnectionDiagnostics[];
   readonly warnings: readonly QualityWarning[];
   readonly isTransmitting: boolean;
+  readonly localStream: MediaStream | null;
   readonly onRespondEntry: (participanteId: string, approved: boolean) => void;
   readonly onStartTransmitindo: () => void;
   readonly onReleasePalco: () => void;
@@ -79,6 +80,7 @@ export function SessaoScreen(props: SessaoScreenProps) {
           </div>
         )}
         <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 12 }}>
+          {props.isTransmitting && props.localStream && <VideoTile stream={props.localStream} label="Você (prévia local)" />}
           {[...props.remoteStreams.entries()].map(([transmissorId, stream]) => (
             <VideoTile key={transmissorId} stream={stream} label={nameOf(state, transmissorId)} />
           ))}

@@ -58,6 +58,7 @@ export function useSessao() {
   const [diagnostics, setDiagnostics] = useState<readonly ConnectionDiagnostics[]>([]);
   const [warnings, setWarnings] = useState<QualityWarning[]>([]);
   const [isTransmitting, setIsTransmitting] = useState(false);
+  const [localStream, setLocalStream] = useState<MediaStream | null>(null);
 
   const stateRef = useRef(state);
   stateRef.current = state;
@@ -127,6 +128,7 @@ export function useSessao() {
           } else if (!isTransmittingNow && wasTransmitting) {
             mesh.stopTransmitting();
             setIsTransmitting(false);
+            setLocalStream(null);
           }
           break;
         }
@@ -135,6 +137,7 @@ export function useSessao() {
           if (pendingStreamRef.current) {
             for (const track of pendingStreamRef.current.getTracks()) track.stop();
             pendingStreamRef.current = null;
+            setLocalStream(null);
           }
           break;
 
@@ -183,6 +186,7 @@ export function useSessao() {
       return; // seletor de Fonte cancelado, ou getDisplayMedia recusado.
     }
     pendingStreamRef.current = stream;
+    setLocalStream(stream);
     send({ type: "request-palco" });
   }, [send]);
 
@@ -194,6 +198,7 @@ export function useSessao() {
     window.pvtBroadcast.leave();
     dispatch({ source: "reset" });
     setIsTransmitting(false);
+    setLocalStream(null);
     setRemoteStreams(new Map());
     setDiagnostics([]);
   }, []);
@@ -222,6 +227,7 @@ export function useSessao() {
     diagnostics,
     warnings,
     isTransmitting,
+    localStream,
     connect,
     respondEntry,
     startTransmitindo,

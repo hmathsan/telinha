@@ -33,11 +33,13 @@ export function openFontePicker(parent: BrowserWindow): Promise<DesktopCapturerS
     let settled = false;
 
     const picker = new BrowserWindow({
-      width: 760,
-      height: 520,
+      width: 820,
+      height: 600,
+      minWidth: 480,
+      minHeight: 360,
       parent,
       modal: true,
-      resizable: false,
+      resizable: true,
       minimizable: false,
       maximizable: false,
       autoHideMenuBar: true,
