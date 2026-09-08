@@ -1,4 +1,4 @@
-import { MAX_PARTICIPANTES, PROTOCOL_VERSION } from "@pvt-broadcast/protocol";
+import { MAX_PARTICIPANTES, MAX_TRANSMISSORES, PROTOCOL_VERSION } from "@pvt-broadcast/protocol";
 import { expect, test } from "vitest";
 import { connect, nextMessage, send } from "./helpers.js";
 
@@ -88,6 +88,57 @@ test("o oitavo participante e recusado com sessao-full", async () => {
   send(eighth, { type: "join", codigoDeSessao, name: "Eighth", protocolVersion: PROTOCOL_VERSION });
   const refused = await nextMessage(eighth);
   expect(refused).toEqual({ type: "entry-refused", reason: "sessao-full" });
+});
+
+test("join com versao incompativel e recusado com incompatible-version", async () => {
+  const { codigoDeSessao } = await createSessao("Ana");
+  const joiner = await connect(`/sessao/join?codigoDeSessao=${codigoDeSessao}`);
+  send(joiner, {
+    type: "join",
+    codigoDeSessao,
+    name: "Bruno",
+    protocolVersion: PROTOCOL_VERSION + 1,
+  });
+  const refused = await nextMessage(joiner);
+  expect(refused).toEqual({ type: "entry-refused", reason: "incompatible-version" });
+});
+
+test("expulsao remove o participante e notifica os demais, mas nao o expulso", async () => {
+  const { host, codigoDeSessao } = await createSessao("Ana");
+  const { participanteId: brunoId } = await joinAndApprove(codigoDeSessao, host, "Bruno");
+  await nextMessage(host); // participante-joined
+
+  send(host, { type: "expel", participanteId: brunoId });
+  const left = await nextMessage(host);
+  expect(left).toEqual({ type: "participante-left", participanteId: brunoId, reason: "expelled" });
+});
+
+test("o terceiro pedido de Palco e negado com palco-full", async () => {
+  const { host, codigoDeSessao } = await createSessao("Anfitriao");
+  const admitted: WebSocket[] = [host];
+  const joiners: WebSocket[] = [];
+  for (let i = 0; i < MAX_TRANSMISSORES; i++) {
+    const { joiner } = await joinAndApprove(codigoDeSessao, host, `Participante ${i}`);
+    for (const socket of admitted) await nextMessage(socket); // participante-joined
+    admitted.push(joiner);
+    joiners.push(joiner);
+  }
+  const { joiner: thirdJoiner } = await joinAndApprove(codigoDeSessao, host, "Terceiro");
+  for (const socket of admitted) await nextMessage(socket); // participante-joined
+  admitted.push(thirdJoiner);
+
+  for (const requester of joiners) {
+    send(requester, { type: "request-palco" });
+    // request-palco manda transmissores-changed pra todo mundo admitido, um por socket.
+    for (const socket of admitted) {
+      const changed = await nextMessage(socket);
+      expect(changed.type).toBe("transmissores-changed");
+    }
+  }
+
+  send(thirdJoiner, { type: "request-palco" });
+  const denied = await nextMessage(thirdJoiner);
+  expect(denied).toEqual({ type: "palco-denied", reason: "palco-full" });
 });
 
 test("um participante desconectando libera a vaga de Palco e notifica os demais", async () => {

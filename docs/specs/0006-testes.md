@@ -28,6 +28,9 @@ Uma advertência: rodar sete instâncias na sua máquina concentra todos os enco
 que pode ser justamente o limite investigado na spec 0003. Trate um resultado ruim como possível
 artefato do teste até confirmar com máquinas separadas.
 
+O roteiro passo a passo está em
+[roteiro-de-testes-manuais-de-midia.md](../roteiro-de-testes-manuais-de-midia.md).
+
 ## Pronto quando
 
 - `npm test` roda o núcleo e o sinalizador sem instalar Electron e sem rede externa.
