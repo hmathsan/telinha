@@ -1,12 +1,16 @@
-# pvt-broadcast
+# scrn-broadcast
 
 Compartilhamento de tela P2P entre um pequeno grupo de amigos. Electron + TypeScript, Windows.
+
+O app se apresenta como **Olhaí** para quem o usa; `scrn-broadcast` é o nome técnico, e é o único
+que aparece no código. Veja a
+[ADR 0008](./docs/adr/0008-nome-dividido-entre-repositorio-e-marca.md).
 
 ## Onde está o quê
 
 - [CONTEXT.md](./CONTEXT.md) — o vocabulário. **Leia antes de escrever qualquer código.** Os
-  termos Sessão, Participante, Anfitrião, Transmissor, Espectador, Fonte, Código de Sessão e
-  Palco têm significado exato e aparecem como identificadores no código.
+  termos Sessão, Participante, Anfitrião, Transmissor, Espectador, Fonte, Código de Sessão,
+  Palco, Foco e Grade têm significado exato e aparecem como identificadores no código.
 - [docs/specs/README.md](./docs/specs/README.md) — o que construir, spec por spec, com os
   critérios de pronto. É o ponto de entrada de qualquer tarefa de implementação.
 - [docs/adr/](./docs/adr/) — por que as coisas são como são. Consulte antes de propor mudar

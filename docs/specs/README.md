@@ -18,13 +18,17 @@ como identificadores no código.
 - [0004 — Interface](./0004-interface.md): telas, Palco, indicador de qualidade.
 - [0005 — Empacotamento](./0005-empacotamento.md): build, instalador, auto-update.
 - [0006 — Testes](./0006-testes.md): como validar a malha sem sete pessoas.
+- [0007 — Sistema visual](./0007-sistema-visual.md): tokens do Nocturne, Tailwind, tipografia,
+  estados. A fundação que a 0008 monta em cima.
+- [0008 — Telas](./0008-telas.md): Entrada, Sessão, seletor de Fonte e diagnóstico redesenhados.
+  O comportamento continua sendo o da 0004.
 
 ## Invariantes
 
 Valem em todas as specs.
 
 **Limites como constantes.** `MAX_PARTICIPANTES = 7` e `MAX_TRANSMISSORES = 2` vivem em
-`packages/protocol/src/limites.ts` e são importados de lá. Não são metas de performance: são
+`packages/protocol/src/limits.ts` e são importados de lá. Não são metas de performance: são
 o contrato da [ADR 0002](../adr/0002-malha-p2p-sem-sfu.md).
 
 **Idioma dos identificadores.** Termos do domínio em português, sem acento: `Sessao`,

@@ -1,4 +1,4 @@
-# pvt-broadcast
+# scrn-broadcast
 
 Compartilhamento de tela P2P entre um pequeno grupo de amigos. Existe para resolver bem
 a única coisa que o Discord resolve mal — a qualidade da tela transmitida — e nada além disso.
@@ -42,6 +42,22 @@ detém a lista. Quando o Anfitrião sai, a Sessão deixa de existir.
 _Avoid_: Dono, admin, moderador, owner
 
 **Palco**:
-A área principal da janela, ocupada pela Fonte de um único Transmissor por vez. Os demais
-Transmissores aparecem como miniaturas, e clicar em uma delas a promove ao Palco.
-_Avoid_: Foco, destaque, tela principal, spotlight
+A área principal da janela, onde as Fontes dos Transmissores são exibidas. Tem dois modos, Foco
+e Grade. Estar "no Palco" é estar sendo exibido em tamanho grande.
+_Avoid_: Destaque, tela principal, spotlight
+
+**Foco**:
+O modo padrão do Palco: a Fonte de um único Transmissor por vez, com os demais em miniaturas
+abaixo. Clicar numa miniatura a promove ao Palco e rebaixa a atual.
+_Avoid_: Solo, tela cheia, principal
+
+**Grade**:
+O modo alternativo do Palco: todos os Transmissores em células do mesmo tamanho. Quem assiste
+escolhe entre Foco e Grade; o alternador só existe com dois ou mais Transmissores.
+_Avoid_: Mosaico, tiles, galeria
+
+**Olhaí**:
+O nome que o app mostra a quem o usa — na Entrada, no título da janela e no atalho instalado.
+É só marca: o nome técnico, em toda parte do código e do repositório, é `scrn-broadcast`
+(veja a [ADR 0008](./docs/adr/0008-nome-dividido-entre-repositorio-e-marca.md)). Não é sinônimo
+de Sessão nem de Palco.
