@@ -16,7 +16,7 @@
     "typescript": "^5.6.3"
   },
   "allowScripts": {
-    "esbuild@0.28.1": true,
-    "workerd@1.20260815.1": true
+    "esbuild@0.25.12": true,
+    "workerd@1.20260907.1": true
   }
 }
