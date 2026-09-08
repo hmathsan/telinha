@@ -99,8 +99,11 @@ describe("didFallBackToSoftwareEncoder", () => {
     expect(didFallBackToSoftwareEncoder("ExternalEncoder", "ExternalEncoder")).toBe(false);
   });
 
-  it("does not flag the very first sample, which has no prior implementation to compare", () => {
-    expect(didFallBackToSoftwareEncoder(null, "OpenH264")).toBe(false);
+  it("flags a connection that is already on OpenH264 on its very first sample", () => {
+    // O teto pode já ter estourado antes desta conexão existir (outro programa consumindo
+    // sessões, ou um driver antigo) — nunca existe uma amostra "antes" em hardware nesse caso,
+    // e é exatamente quem está nessa situação que mais precisa do aviso.
+    expect(didFallBackToSoftwareEncoder(null, "OpenH264")).toBe(true);
   });
 
   it("does not flag a null current reading", () => {

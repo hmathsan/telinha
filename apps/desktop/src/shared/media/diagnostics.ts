@@ -88,6 +88,12 @@ export class DiagnosticsSampler {
 /**
  * O único aviso que existe quando o teto de sessões do encoder de hardware estoura: o Chromium
  * cai para OpenH264 por software em silêncio, sem exceção e sem evento (spec 0003, ADR 0002).
+ *
+ * Dispara tanto numa transição vista em tempo real (hardware -> software no meio da Sessão)
+ * quanto na primeiríssima amostra de uma conexão já em software: se o teto já tinha estourado
+ * antes desta conexão existir — outro programa consumindo sessões, ou um driver antigo com teto
+ * de 3 —, nunca existe uma amostra "antes" em hardware para comparar, e o amigo afetado é
+ * exatamente quem mais precisa do aviso.
  */
 export function didFallBackToSoftwareEncoder(
   previousEncoderImplementation: string | null,
@@ -96,7 +102,7 @@ export function didFallBackToSoftwareEncoder(
   if (currentEncoderImplementation === null) return false;
   const isSoftwareNow = currentEncoderImplementation.toLowerCase().includes("openh264");
   if (!isSoftwareNow) return false;
-  if (previousEncoderImplementation === null) return false;
-  const wasSoftwareBefore = previousEncoderImplementation.toLowerCase().includes("openh264");
-  return !wasSoftwareBefore;
+  const wasAlreadyKnownSoftware =
+    previousEncoderImplementation !== null && previousEncoderImplementation.toLowerCase().includes("openh264");
+  return !wasAlreadyKnownSoftware;
 }
