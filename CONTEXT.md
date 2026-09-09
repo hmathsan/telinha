@@ -1,7 +1,12 @@
 # scrn-broadcast
 
 Compartilhamento de tela P2P entre um pequeno grupo de amigos. Existe para resolver bem
-a única coisa que o Discord resolve mal — a qualidade da tela transmitida — e nada além disso.
+a única coisa que o Discord resolve mal — a qualidade da tela transmitida, som dela incluído —
+e nada além disso.
+
+"A tela transmitida" inclui o áudio que sai dela: tela de jogo sem som é a mesma coisa pela
+metade, não uma coisa a mais. Já chat, gravação e contas são coisas a mais, e continuam fora —
+é esta frase que decide isso quando a dúvida aparecer.
 
 ## Language
 

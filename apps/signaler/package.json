@@ -3,6 +3,7 @@
   "private": true,
   "version": "0.0.0",
   "description": "Cloudflare Worker + Durable Object por Sessão. Implementado pela spec 0002.",
+  "license": "AGPL-3.0-only",
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",

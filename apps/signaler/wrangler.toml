@@ -14,4 +14,4 @@ new_sqlite_classes = ["SessaoDurableObject"]
 # CF_ANALYTICS_TOKEN são segredos — `wrangler secret put <nome>` em produção, ou um `.dev.vars`
 # local (não versionado) para `wrangler dev`. Sem eles, o sinalizador devolve só STUN.
 [vars]
-TURN_SPEND_LIMIT_GB = 80
+TURN_SPEND_LIMIT_GB = 900

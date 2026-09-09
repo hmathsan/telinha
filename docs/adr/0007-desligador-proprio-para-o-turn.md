@@ -15,6 +15,12 @@ de relay deixa de conectar, e isso é preferível a uma fatura surpresa.
 - O token da API TURN vive só no sinalizador. Embutido no app, sai de um `.asar` em segundos.
 - Credenciais são de vida curta (minutos, não as 48 horas máximas) e carregam `customIdentifier`
   por Participante, que é o que permite ver quem consumiu o quê nas análises.
-- Falta confirmar com o suporte da Cloudflare, por escrito, o que acontece ao estourar a cota em
-  conta sem meio de pagamento. A documentação é silenciosa, e a arquitetura de cobrança é
-  registrar-e-cobrar, não barrar-antes.
+- A conta que hospeda o sinalizador oficial **não tem meio de pagamento cadastrado**. Essa é a
+  única coisa nesta arquitetura que a Cloudflare respeita como teto de gasto de verdade: sem
+  cartão, o pior caso do estouro é o serviço parar, não uma fatura. O desligador deste ADR
+  continua valendo como primeira linha, e deixa de ser a única.
+- O limite passou de 80 para **900 GB/mês**. Os 80 foram calibrados para sete amigos e um consumo
+  estimado de 40 a 100 GB; com o app distribuído publicamente ([ADR 0005](./0005-repositorio-publico-por-causa-do-auto-update.md)),
+  eles desligariam o relay para todo mundo a 8% de uma franquia gratuita de 1.000 GB — sem nenhum
+  centavo gasto. Os 900 usam a franquia e mantêm margem para a latência de ~30 segundos do dataset
+  de analytics.

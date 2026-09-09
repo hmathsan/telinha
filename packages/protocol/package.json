@@ -3,6 +3,7 @@
   "private": true,
   "version": "0.0.0",
   "description": "Mensagens, limites e máquina de estados da Sessão. Node puro, sem Electron/React/WebRTC.",
+  "license": "AGPL-3.0-only",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
