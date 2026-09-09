@@ -3,8 +3,11 @@
  *
  * Existe porque `/sessao/create` cria um Durable Object sem autenticação nenhuma: a URL do
  * sinalizador é pública ([ADR 0005](../../../docs/adr/0005-repositorio-publico-por-causa-do-auto-update.md)),
- * e sem limite qualquer um esgota a cota diária da conta — o que não gera fatura, mas deixa todo
- * mundo sem conseguir abrir Sessão.
+ * e sem limite qualquer um cria Durable Objects sem teto — cada um com armazenamento e um alarme.
+ *
+ * O que ele **não** faz é proteger a cota diária de requisições: um `429` também é uma
+ * requisição, e este código roda depois de ela já ter sido contada. Barrar antes exigiria regra
+ * de WAF na borda, que não existe em `*.workers.dev`.
  *
  * As bindings são **opcionais de propósito**: o miniflare não simula `[[ratelimits]]`, então
  * `wrangler dev` e os testes rodam sem elas. Sem binding não há limite, e é por isso que a

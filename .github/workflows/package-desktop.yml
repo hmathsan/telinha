@@ -1,0 +1,46 @@
+name: Empacotamento do desktop
+
+# Existe porque a release do desktop sai de um script local: sem este job, o `electron-builder`
+# só seria exercitado na hora de publicar, que é o pior momento para descobrir que ele quebrou.
+#
+# Fica num workflow separado, e não num job do CI, porque o filtro `paths` do GitHub Actions é
+# do gatilho e não do job — é assim que se roda o Windows apenas quando o desktop muda. Windows
+# é gratuito em repositório público (ADR 0005).
+on:
+  pull_request:
+    paths:
+      - "apps/desktop/**"
+      - "packages/protocol/**"
+      - "package-lock.json"
+      - ".github/workflows/package-desktop.yml"
+  push:
+    branches: [main]
+    paths:
+      - "apps/desktop/**"
+      - "packages/protocol/**"
+      - "package-lock.json"
+      - ".github/workflows/package-desktop.yml"
+
+concurrency:
+  group: package-desktop-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  package:
+    name: instalador NSIS
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run build -w @scrn-broadcast/protocol
+
+      # `--publish never`: aqui só se prova que empacota. Publicar é o script de release local.
+      # A URL do sinalizador não é injetada: o instalador deste job nunca é distribuído.
+      - run: npm run build -w @scrn-broadcast/desktop

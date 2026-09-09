@@ -1,0 +1,62 @@
+name: Problema com o Telinha
+description: Algo não funciona como deveria
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Antes de abrir: a seção **Quando algo dá errado** do
+        [README](https://github.com/hmathsan/scrn-broadcast#quando-algo-dá-errado) cobre os casos
+        mais comuns — borda amarela, aviso do Windows na instalação, janela preta, transmissão
+        travando. Se for um deles, a resposta já está lá.
+
+  - type: textarea
+    id: o-que-aconteceu
+    attributes:
+      label: O que aconteceu
+      description: E o que você esperava que acontecesse.
+    validations:
+      required: true
+
+  - type: input
+    id: versao
+    attributes:
+      label: Versão do Telinha
+      description: "Aparece no instalador que você baixou, por exemplo 1.0.0."
+      placeholder: "1.0.0"
+    validations:
+      required: true
+
+  - type: input
+    id: windows
+    attributes:
+      label: Versão do Windows
+      description: "Tecle Win+R, digite `winver`, e copie a linha da versão."
+      placeholder: "Windows 11 24H2"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: papel
+    attributes:
+      label: Você estava transmitindo ou assistindo?
+      description: Encoder e decoder falham de formas diferentes, e isso muda onde procurar.
+      options:
+        - Transmitindo
+        - Assistindo
+        - Os dois
+        - Nem cheguei a entrar numa Sessão
+    validations:
+      required: true
+
+  - type: textarea
+    id: diagnostico
+    attributes:
+      label: Diagnóstico exportado
+      description: |
+        No app, abra o diagnóstico e exporte o arquivo. **Arraste-o para esta caixa.**
+        Ele traz bitrate, encoder em uso, perda de pacotes e se a conexão passou por relay — sem
+        isso, quase todo problema de mídia vira adivinhação. Não contém a sua tela nem o Código de
+        Sessão.
+    validations:
+      required: false

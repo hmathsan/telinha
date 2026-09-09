@@ -10,7 +10,6 @@
   "scripts": {
     "dev": "electron-vite dev",
     "build": "electron-vite build && electron-builder --publish never",
-    "release": "electron-vite build && electron-builder --publish always",
     "start": "electron-vite preview",
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.web.json --noEmit"

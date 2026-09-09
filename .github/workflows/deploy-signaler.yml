@@ -1,0 +1,54 @@
+name: Deploy do sinalizador
+
+# A tag é o caminho normal: ela vem do script de release local, então app e sinalizador saem da
+# mesma versão. O `workflow_dispatch` existe porque um Worker é substituído, não distribuído —
+# corrigir uma linha nele não deveria exigir cortar uma release do instalador.
+#
+# Consequência que vale ter em mente: a tag dispara este deploy enquanto o instalador ainda está
+# compilando na máquina de quem publicou. O sinalizador entra no ar antes do app, e vai conviver
+# com versões instaladas antigas por dias de qualquer forma. Ele precisa ser compatível para trás
+# com a versão anterior; PROTOCOL_VERSION (spec 0001) detecta a quebra, não a evita.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-signaler
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: wrangler deploy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # `git describe` precisa das tags, e o checkout padrão vem raso.
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run build -w @scrn-broadcast/protocol
+
+      - run: npm test -w @scrn-broadcast/signaler
+
+      # `git describe` responde nos dois gatilhos: `v1.0.0` numa tag, `v1.0.0-3-gabc1234` num
+      # dispatch três commits depois dela. O Worker devolve isso em `/version`.
+      - name: Versão do deploy
+        id: versao
+        run: echo "app_version=$(git describe --tags --always)" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy
+        run: npx wrangler deploy --var APP_VERSION:${{ steps.versao.outputs.app_version }}
+        working-directory: apps/signaler
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+
+      - name: Confere o que subiu
+        run: echo "Deploy de ${{ steps.versao.outputs.app_version }} concluído."

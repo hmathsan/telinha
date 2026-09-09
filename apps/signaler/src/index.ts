@@ -19,11 +19,20 @@ export { SessaoDurableObject } from "./durableObject.js";
  */
 export default {
   async fetch(request: Request, env: Env, _ctx: ExecutionContext): Promise<Response> {
+    const url = new URL(request.url);
+
+    // Rastreabilidade do deploy, e a única rota que não é WebSocket. Um Worker é substituído, não
+    // instalado: sem isto não há como olhar o que está no ar (spec 0005, "Versão").
+    if (url.pathname === "/version") {
+      return new Response(env.APP_VERSION ?? "dev", {
+        headers: { "Content-Type": "text/plain" },
+      });
+    }
+
     if (request.headers.get("Upgrade") !== "websocket") {
       return new Response("expected a websocket upgrade", { status: 426 });
     }
 
-    const url = new URL(request.url);
     const ip = clientIp(request);
     let codigoDeSessao: string;
     if (url.pathname === "/sessao/create") {

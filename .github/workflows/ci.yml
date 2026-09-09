@@ -1,0 +1,35 @@
+name: CI
+
+# Roda nos dois fluxos de propósito. `pull_request` é o portão normal; `push` na main existe
+# porque a release sai de um script local (docs/specs/0005), sem passar por CI nenhum — o push
+# é a última vez que alguém confere os testes antes de uma tag ser criada.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: typecheck e testes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # `packages/protocol` publica `dist/`, e tanto o typecheck do desktop quanto o do
+      # sinalizador resolvem os tipos a partir de lá.
+      - run: npm run build -w @scrn-broadcast/protocol
+
+      - run: npm run typecheck --workspaces --if-present
+
+      - run: npm test --workspaces --if-present

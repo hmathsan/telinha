@@ -15,6 +15,8 @@ que aparece no código. Veja a
   critérios de pronto. É o ponto de entrada de qualquer tarefa de implementação.
 - [docs/adr/](./docs/adr/) — por que as coisas são como são. Consulte antes de propor mudar
   arquitetura, e antes de "consertar" algo que pareça uma escolha estranha.
+- [README.md](./README.md) — o que o usuário final lê. Se um comportamento descrito lá mudar, ele
+  muda junto, e o `README.en.md` é tradução integral dele.
 
 ## Duas regras que se violam por acidente
 
@@ -27,6 +29,22 @@ componente destrói a capacidade de teste do projeto inteiro.
 **Termos do domínio em português nos identificadores**, sem acento: `Sessao`, `Anfitriao`,
 `Transmissor`, `Espectador`, `Palco`, `Fonte`, `codigoDeSessao`. Tudo o mais em inglês:
 `connect`, `retry`, `encoder`, `stats`.
+
+## Como isto sai para o mundo
+
+**O sinalizador tem CD; o desktop não.** A tag `vX.Y.Z` dispara
+`.github/workflows/deploy-signaler.yml`, que publica o Worker. O instalador sai da máquina de quem
+mantém o projeto, por `npm run release -- X.Y.Z` (`scripts/release.mjs`), e o `electron-builder`
+cria a release do GitHub como rascunho, para ser publicada no botão.
+
+**A versão mora na tag, não no `package.json`.** `apps/desktop/package.json` fica em `0.0.0` para
+sempre; a versão entra no pacote por `--config.extraMetadata.version`. Não bumpe versão em PR — o
+script recusa se alguém tiver bumpado. O porquê está na spec
+[0005](./docs/specs/0005-empacotamento.md), seção "Versão".
+
+O CI (`.github/workflows/ci.yml`) roda typecheck e testes em PR e em push na `main`; o
+empacotamento do desktop é um workflow separado, filtrado por `paths`, porque a release local não
+exercita o `electron-builder` até a hora de publicar.
 
 ## Ordem de construção
 

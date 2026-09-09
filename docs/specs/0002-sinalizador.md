@@ -40,9 +40,14 @@ devolva apenas STUN. A Cloudflare não tem teto de gasto próprio — veja a
 ## Limite de taxa nas rotas de entrada
 
 A URL do sinalizador é pública ([ADR 0005](../adr/0005-repositorio-publico-por-causa-do-auto-update.md)),
-e `/sessao/create` cria um Durable Object sem autenticação nenhuma. Sem limite, qualquer um
-esgota a cota diária da conta — o que não gera fatura, mas deixa todo mundo sem conseguir abrir
-Sessão. Com o app distribuído publicamente, sucesso e abuso produzem o mesmo sintoma.
+e `/sessao/create` cria um Durable Object sem autenticação nenhuma. O limite existe para que
+ninguém crie Durable Objects sem teto — cada um traz armazenamento e um alarme de 60 segundos.
+
+**O que ele não faz:** proteger a cota diária de requisições do Worker. Um `429` também é uma
+requisição, e código dentro do Worker roda depois de a requisição já ter sido contada. Só uma
+regra de WAF na borda barraria antes, e ela não existe em `*.workers.dev`. Quem quiser queimar a
+cota diária consegue, e o sintoma é ninguém abrir Sessão até o dia virar — sem fatura, porque a
+conta não tem meio de pagamento ([ADR 0007](../adr/0007-desligador-proprio-para-o-turn.md)).
 
 Limite por IP (`CF-Connecting-IP`), via bindings `[[ratelimits]]`: **5 por minuto** em
 `/sessao/create` e **30 por minuto** em `/sessao/join`. O `join` é barato, mas é por onde se
