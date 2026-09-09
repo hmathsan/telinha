@@ -1,8 +1,9 @@
 import { app, BrowserWindow, clipboard, ipcMain, session } from "electron";
 import type { AppToSignalerMessage } from "@scrn-broadcast/protocol";
 import { enableWindowsGraphicsCapture } from "./wgcFlags.js";
-import { applyDebugEncoderOverrides } from "./debugSwitches.js";
+import { applyHardwareAccelOverrides } from "./debugSwitches.js";
 import { createMainWindow } from "./mainWindow.js";
+import { applyDevToolsPolicy } from "./devTools.js";
 import { openFontePicker } from "./sourcePicker.js";
 import { SignalingClient } from "./signalingClient.js";
 import { exportDiagnostics } from "./diagnosticsExport.js";
@@ -11,7 +12,7 @@ import { IPC_CHANNELS, type ConnectAction, type DiagnosticsExportRequest } from 
 
 // Precisa rodar antes de app.whenReady() (spec 0003, "A captura de janela precisa de WGC").
 enableWindowsGraphicsCapture();
-applyDebugEncoderOverrides();
+applyHardwareAccelOverrides();
 
 const SIGNALER_URL = import.meta.env.MAIN_VITE_SIGNALER_URL ?? "ws://localhost:8787";
 
@@ -84,10 +85,12 @@ app.whenReady().then(() => {
   registerClipboardIpc();
   startAutoUpdater();
   mainWindow = createMainWindow();
+  applyDevToolsPolicy(mainWindow);
 
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       mainWindow = createMainWindow();
+      applyDevToolsPolicy(mainWindow);
     }
   });
 });

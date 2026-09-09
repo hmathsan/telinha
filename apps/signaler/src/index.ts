@@ -1,5 +1,6 @@
 import { generateCodigoDeSessao } from "@scrn-broadcast/protocol";
 import type { Env } from "./env.js";
+import { clientIp, tooManyRequestsResponse, withinRateLimit } from "./rateLimit.js";
 
 export { SessaoDurableObject } from "./durableObject.js";
 
@@ -12,6 +13,9 @@ export { SessaoDurableObject } from "./durableObject.js";
  * `/sessao/join?codigoDeSessao=XXXXXX` roteia para o Durable Object já existente com esse nome;
  * se nunca houve uma Sessão com esse código, o Durable Object recusa com `'invalid-code'` ao
  * primeiro `join` recebido.
+ *
+ * As duas rotas passam por limite de taxa por IP antes de qualquer trabalho — `create` porque
+ * cria um Durable Object, `join` porque é por onde se varreria códigos. Ver `rateLimit.ts`.
  */
 export default {
   async fetch(request: Request, env: Env, _ctx: ExecutionContext): Promise<Response> {
@@ -20,10 +24,17 @@ export default {
     }
 
     const url = new URL(request.url);
+    const ip = clientIp(request);
     let codigoDeSessao: string;
     if (url.pathname === "/sessao/create") {
+      if (!(await withinRateLimit(env.CREATE_LIMITER, ip))) {
+        return tooManyRequestsResponse();
+      }
       codigoDeSessao = generateCodigoDeSessao();
     } else if (url.pathname === "/sessao/join") {
+      if (!(await withinRateLimit(env.JOIN_LIMITER, ip))) {
+        return tooManyRequestsResponse();
+      }
       const code = url.searchParams.get("codigoDeSessao");
       if (!code) {
         return new Response("missing codigoDeSessao", { status: 400 });

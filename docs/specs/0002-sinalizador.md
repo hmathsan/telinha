@@ -37,6 +37,26 @@ Antes de emitir, consulte o egresso acumulado do mês no dataset GraphQL
 devolva apenas STUN. A Cloudflare não tem teto de gasto próprio — veja a
 [ADR 0007](../adr/0007-desligador-proprio-para-o-turn.md).
 
+## Limite de taxa nas rotas de entrada
+
+A URL do sinalizador é pública ([ADR 0005](../adr/0005-repositorio-publico-por-causa-do-auto-update.md)),
+e `/sessao/create` cria um Durable Object sem autenticação nenhuma. Sem limite, qualquer um
+esgota a cota diária da conta — o que não gera fatura, mas deixa todo mundo sem conseguir abrir
+Sessão. Com o app distribuído publicamente, sucesso e abuso produzem o mesmo sintoma.
+
+Limite por IP (`CF-Connecting-IP`), via bindings `[[ratelimits]]`: **5 por minuto** em
+`/sessao/create` e **30 por minuto** em `/sessao/join`. O `join` é barato, mas é por onde se
+varreria códigos; 36⁶ combinações já tornam isso inviável, então ali o limite é higiene. Quem
+estoura recebe `429` com `Retry-After`.
+
+O miniflare não simula `[[ratelimits]]`: em `wrangler dev` e nos testes as bindings não existem e
+o Worker segue sem limite, de propósito. Por isso a decisão vive numa função pura
+(`src/rateLimit.ts`), que é o que os testes cobrem.
+
+O `429` ainda não vira mensagem na interface — quem estoura vê o erro genérico de conexão. É
+conhecido e aceito: quem dispara 5 criações por minuto é quem está testando ou quem está
+abusando.
+
 ## O que o sinalizador não faz
 
 Ele não vê mídia, não guarda histórico e não persiste nada além do tempo de vida da Sessão.
@@ -58,6 +78,7 @@ instâncias (spec 0006).
 
 - `wrangler dev` sobe o sinalizador e um cliente WebSocket consegue criar e entrar numa Sessão.
 - O caminho de admissão está testado: entrar, o Anfitrião aprovar, e entrar e o Anfitrião recusar.
+- Estourar o limite de `/sessao/create` devolve `429` em vez de criar um Durable Object.
 - Anfitrião desconectando derruba a Sessão para todos.
 - O oitavo Participante é recusado com `'sessao-full'`.
 - Com o limite de gasto zerado na configuração, o sinalizador devolve só STUN e não emite

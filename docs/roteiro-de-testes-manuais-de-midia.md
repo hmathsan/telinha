@@ -80,7 +80,7 @@ diagnóstico de cada Transmissor, olhe a coluna Encoder.
 **Queda forçada para software.** Fixe uma instância Transmissora com a variável de ambiente:
 
 ```bash
-SCRN_BROADCAST_DISABLE_HW_ENCODE=1 npx electron out/main/index.js --user-data-dir=/tmp/scrn-broadcast-p1
+SCRN_BROADCAST_DISABLE_HW_ACCEL=1 npx electron out/main/index.js --user-data-dir=/tmp/scrn-broadcast-p1
 ```
 
 Transmita a partir dela.

@@ -1,14 +1,13 @@
 import { app } from "electron";
+import { disabledHardwareAccelSwitches } from "../shared/hardening.js";
 
 /**
- * Só para exercitar manualmente a queda para encoder por software do "Pronto quando" da spec
- * 0003. `--disable-accelerated-video-encode` é uma flag do Chromium, não do npm/electron-vite —
- * passá-la depois de `npm run dev` vira um flag do próprio npm (erro `EUNKNOWNCONFIG`), e mesmo
- * com `--` no meio, o `electron-vite dev` não repassa argumentos desconhecidos ao processo do
- * Electron que ele lança. Uma variável de ambiente evita esse problema por completo.
+ * Aplica as flags do Chromium que desligam a aceleração por hardware quando
+ * `SCRN_BROADCAST_DISABLE_HW_ACCEL=1`. A regra — inclusive por que uma variável só cobre encode e
+ * decode — está em `shared/hardening.ts`. Precisa rodar antes de `app.whenReady()`.
  */
-export function applyDebugEncoderOverrides(): void {
-  if (process.env["SCRN_BROADCAST_DISABLE_HW_ENCODE"] === "1") {
-    app.commandLine.appendSwitch("disable-accelerated-video-encode");
+export function applyHardwareAccelOverrides(): void {
+  for (const switchName of disabledHardwareAccelSwitches(process.env)) {
+    app.commandLine.appendSwitch(switchName);
   }
 }

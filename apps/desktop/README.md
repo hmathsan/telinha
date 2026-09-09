@@ -17,7 +17,9 @@ sobre ele são a spec [0008](../../docs/specs/0008-telas.md).
   `src/renderer/src/styles` guarda o sistema visual: os tokens e componentes do Nocturne, o Inter
   vendorizado em `.woff2` (a CSP `default-src 'self'` bloqueia o Google Fonts) e a folha que
   apelida os tokens para o Tailwind. `components/icons` traz os traçados do Phosphor inline.
-- `src/shared` — lógica pura, testável em Node sem Electron/DOM/WebRTC: backoff de reconexão,
+- `src/shared` — lógica pura, testável em Node sem Electron/DOM/WebRTC: as políticas de
+  endurecimento do app empacotado (`hardening.ts`: DevTools fora do app instalado e o desligador
+  da aceleração por hardware), backoff de reconexão,
   detecção de relay, amostragem de diagnóstico, política de reconexão por ICE, teto de bitrate,
   validação do payload de sinalização da malha, as regras de layout do Palco (`palcoSelection.ts`:
   alternador, ordem das células e a volta para Foco quando um Transmissor sai da Grade), e o
@@ -63,16 +65,17 @@ A spec 0003 lista fatos que só se confirmam rodando de verdade — ver "Pronto 
 a spec pede; não substitui essa validação.
 
 Para forçar a queda para encoder por software (`encoderImplementation` virando `OpenH264`) e
-testar o aviso do indicador de qualidade: `--disable-accelerated-video-encode` é uma flag do
-Chromium, e nem o npm nem o `electron-vite dev` a repassam para o processo do Electron que
-lançam. Use a variável de ambiente:
+testar o aviso do indicador de qualidade: as flags são do Chromium, e nem o npm nem o
+`electron-vite dev` as repassam para o processo do Electron que lançam. Use a variável de
+ambiente, que desliga encode **e** decode de uma vez (`shared/hardening.ts` explica por que uma
+chave só):
 
 ```
-SCRN_BROADCAST_DISABLE_HW_ENCODE=1 npm run dev -w @scrn-broadcast/desktop
+SCRN_BROADCAST_DISABLE_HW_ACCEL=1 npm run dev -w @scrn-broadcast/desktop
 ```
 
 No PowerShell:
 
 ```
-$env:SCRN_BROADCAST_DISABLE_HW_ENCODE = '1'; npm run dev -w @scrn-broadcast/desktop
+$env:SCRN_BROADCAST_DISABLE_HW_ACCEL = '1'; npm run dev -w @scrn-broadcast/desktop
 ```
