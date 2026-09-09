@@ -2,7 +2,7 @@
   "name": "@pvt-broadcast/desktop",
   "private": true,
   "version": "0.0.0",
-  "description": "Electron + React + Vite. Implementado pelas specs 0003 (malha de mídia), 0004 (interface), 0005 (empacotamento) e 0007 (sistema visual).",
+  "description": "Electron + React + Vite. Implementado pelas specs 0003 (malha de mídia), 0004 (interface), 0005 (empacotamento), 0007 (sistema visual) e 0008 (telas).",
   "type": "module",
   "main": "./out/main/index.js",
   "author": "hmathsan",

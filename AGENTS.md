@@ -2,7 +2,7 @@
 
 Compartilhamento de tela P2P entre um pequeno grupo de amigos. Electron + TypeScript, Windows.
 
-O app se apresenta como **Olhaí** para quem o usa; `scrn-broadcast` é o nome técnico, e é o único
+O app se apresenta como **Telinha** para quem o usa; `scrn-broadcast` é o nome técnico, e é o único
 que aparece no código. Veja a
 [ADR 0008](./docs/adr/0008-nome-dividido-entre-repositorio-e-marca.md).
 

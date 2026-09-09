@@ -8,10 +8,11 @@ export interface QualityIndicatorProps {
 }
 
 /**
- * Sempre visível e discreto (spec 0004, "Indicador de qualidade"): resolução e FPS atuais do
- * Palco, mais um sinal de conexão degradada. É a distinção entre congestionamento (números caindo
- * mas o ponto continua) e defeito (o ponto fica âmbar). Clicar abre o painel expandido de onde sai
- * o "exportar diagnóstico".
+ * Sempre visível e discreto (spec 0004, "Indicador de qualidade"): resolução, FPS e o sinal de
+ * conexão degradada do Palco. Sem Mbps — o número por conexão fica só no diagnóstico (spec 0008).
+ *
+ * O aviso de relay não some no redesenho: sem ele, o amigo afetado só percebe que a experiência
+ * dele é pior que a dos outros, sem saber por quê. Clicar abre o painel de diagnóstico.
  */
 export function QualityIndicator({ frameWidth, frameHeight, framesPerSecond, degraded, relayed, onClick }: QualityIndicatorProps) {
   const resolution = frameWidth && frameHeight ? `${frameWidth}×${frameHeight}` : "—";
@@ -24,6 +25,7 @@ export function QualityIndicator({ frameWidth, frameHeight, framesPerSecond, deg
       <span>
         {resolution} · {fps}
       </span>
+      {degraded && <span>· conexão degradada</span>}
       {relayed && <span>· sua rede exige um servidor de retransmissão</span>}
     </button>
   );

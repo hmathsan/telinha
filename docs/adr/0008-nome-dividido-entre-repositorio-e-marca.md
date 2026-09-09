@@ -15,7 +15,7 @@ Ficamos com dois:
 
 - **`scrn-broadcast`** é o nome técnico: repositório, pacotes npm, `appId`, worker do sinalizador,
   identificadores. Casa com o repositório que já existe.
-- **Olhaí** é a marca: aparece na tela de Entrada, no `<title>` e no atalho instalado.
+- **Telinha** é a marca: aparece na tela de Entrada, no `<title>` e no atalho instalado.
 
 ## Por que não unificar
 
@@ -31,10 +31,17 @@ mudar seria pagar o custo do rename duas vezes.
 
 ## Consequências
 
-- `appId: com.scrnbroadcast.desktop` e `productName: Olhai` — sem acento, porque caminho de
-  instalação NSIS com acento é fonte de problema; o "Olhaí" acentuado fica na interface.
-- Quem lê o código encontra `scrn-broadcast` e não encontra "Olhaí" em lugar nenhum além da
+- `appId: com.scrnbroadcast.desktop` e `productName: Telinha`. A marca não leva acento, o que
+  evita de saída o problema de caminho de instalação NSIS com acento.
+- Quem lê o código encontra `scrn-broadcast` e não encontra "Telinha" em lugar nenhum além da
   camada de apresentação. É de propósito.
 - Se um dia a marca virar também o nome do repositório, isso é **outra** decisão, e ela custa o
   feed de auto-update de todo mundo que já instalou. Não é um detalhe de renomeação.
 - `Palco` continua significando só a área principal da janela.
+
+## A marca já mudou uma vez
+
+A primeira marca registrada aqui foi **Olhaí**; virou **Telinha** antes da primeira release. Não é
+uma correção desta ADR — é ela funcionando: a troca custou uma linha em cada arquivo de
+apresentação e nenhuma linha de código, que é exatamente o motivo declarado para não amarrar os
+identificadores à marca.

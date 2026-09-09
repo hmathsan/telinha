@@ -20,6 +20,21 @@ describe("sessaoReducer", () => {
     expect(state.roster).toEqual([{ id: "p1", name: "Ana" }]);
   });
 
+  it("keeps the Codigo de Sessao typed at join time, so the barra superior can offer to copy it", () => {
+    let state = sessaoReducer(initialClientSessaoState, {
+      source: "connect-attempt",
+      connectAction: { kind: "join", name: "Beto", codigoDeSessao: "ABC123" },
+    });
+    state = signaler(state, {
+      type: "entry-approved",
+      participanteId: "p2",
+      roster: [{ id: "p2", name: "Beto" }],
+      transmissores: [],
+    });
+
+    expect(state.codigoDeSessao).toBe("ABC123");
+  });
+
   it("moves to the sessao screen on entry-approved, carrying the roster and transmissores", () => {
     const state = signaler(initialClientSessaoState, {
       type: "entry-approved",

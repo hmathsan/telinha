@@ -1,16 +1,17 @@
 import { useMemo, useRef, useState } from "react";
 import { MAX_TRANSMISSORES } from "@pvt-broadcast/protocol";
-import type { EntryRequestEntry } from "../../shared/clientSessaoState.js";
-import type { ClientSessaoState } from "../../shared/clientSessaoState.js";
+import type { ClientSessaoState, EntryRequestEntry } from "../../shared/clientSessaoState.js";
 import type { SignalingConnectionState } from "../../shared/ipc.js";
 import { isConnectionDegraded } from "../../shared/media/connectionQuality.js";
-import { selectPalco } from "../../shared/palcoSelection.js";
+import { selectPalcoClick, selectPalcoLayout, type ModoPalco } from "../../shared/palcoSelection.js";
 import type { ConnectionDiagnostics } from "./media/meshManager.js";
 import type { QualityWarning } from "./useSessao.js";
-import { VideoTile } from "./VideoTile.js";
-import { QualityIndicator } from "./QualityIndicator.js";
 import { DiagnosticsPanel } from "./DiagnosticsPanel.js";
-import { IconBroadcast, IconSignOut } from "./components/icons/index.js";
+import { Palco } from "./Palco.js";
+import { ParticipantesDrawer } from "./ParticipantesDrawer.js";
+import { QualityIndicator } from "./QualityIndicator.js";
+import { TopBar } from "./TopBar.js";
+import { IconBroadcast } from "./components/icons/index.js";
 
 export interface SessaoScreenProps {
   readonly state: ClientSessaoState;
@@ -42,16 +43,13 @@ function connectionBanner(connectionState: SignalingConnectionState): string | n
   }
 }
 
-function nameOf(state: ClientSessaoState, id: string): string {
-  if (id === state.myId) return "Você";
-  return state.roster.find((p) => p.id === id)?.name ?? id.slice(0, 8);
-}
-
 export function SessaoScreen(props: SessaoScreenProps) {
   const { state } = props;
   const [showDiagnostics, setShowDiagnostics] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const [promotedId, setPromotedId] = useState<string | null>(null);
-  const stageRef = useRef<HTMLDivElement | null>(null);
+  const [modoPreferido, setModoPreferido] = useState<ModoPalco>("foco");
+  const palcoRef = useRef<HTMLDivElement | null>(null);
 
   const banner = connectionBanner(props.connectionState);
   const palcoOcupado = state.transmissores.length >= MAX_TRANSMISSORES;
@@ -62,13 +60,20 @@ export function SessaoScreen(props: SessaoScreenProps) {
     return map;
   }, [props.remoteStreams, props.isTransmitting, props.localStream, state.myId]);
 
-  // O primeiro Transmissor ocupa o Palco por padrão; clicar numa miniatura promove e substitui
-  // (spec 0004, "Palco"). Ordem vem do roster autoritativo (`state.transmissores`), não da ordem
-  // de chegada das streams na malha.
-  const orderedTransmissorIds = state.transmissores.filter((id) => streamsById.has(id));
-  const stagedId = selectPalco(orderedTransmissorIds, promotedId);
-  const thumbnailIds = orderedTransmissorIds.filter((id) => id !== stagedId);
+  // Todas as regras de layout — alternador, ordem das células, quem está no Palco, e a volta para
+  // Foco quando um Transmissor sai da Grade — vivem fora do React (spec 0008).
+  const layout = useMemo(
+    () =>
+      selectPalcoLayout({
+        transmissorIds: state.transmissores,
+        streamIds: new Set(streamsById.keys()),
+        promotedId,
+        modoPreferido,
+      }),
+    [state.transmissores, streamsById, promotedId, modoPreferido],
+  );
 
+  const stagedId = layout.stagedId;
   const stagedDiagnostics =
     stagedId !== null
       ? props.diagnostics.find(
@@ -92,16 +97,46 @@ export function SessaoScreen(props: SessaoScreenProps) {
       })
     : false;
   const relayed = props.diagnostics.some((d) => d.relay.isRelay);
+  const stageMeta =
+    frameWidth && frameHeight
+      ? `${frameWidth}×${frameHeight}${framesPerSecond !== null ? ` · ${framesPerSecond} fps` : ""}`
+      : null;
 
-  function promote(id: string): void {
-    setPromotedId(id);
+  function nameOf(id: string): string {
+    if (id === state.myId) return "Você";
+    return state.roster.find((p) => p.id === id)?.name ?? id.slice(0, 8);
+  }
+
+  /** O que o clique faz é decisão de `selectPalcoClick`, não deste componente. */
+  function tileClick(id: string): void {
+    const next = selectPalcoClick({
+      modo: layout.modo,
+      alternadorVisivel: layout.alternadorVisivel,
+      clickedId: id,
+      stagedId: layout.stagedId,
+    });
+    setModoPreferido(next.modoPreferido);
+    setPromotedId(next.promotedId);
   }
 
   function toggleFullscreen(): void {
-    const el = stageRef.current;
+    const el = palcoRef.current;
     if (!el) return;
     if (document.fullscreenElement) void document.exitFullscreen();
     else void el.requestFullscreen();
+  }
+
+  /**
+   * Duplo clique numa célula da Grade: promove, volta para Foco e entra em tela cheia. O pedido de
+   * tela cheia sai aqui, no mesmo instante do clique — adiá-lo para depois da troca de modo perde
+   * a ativação do gesto, e o Chromium recusa. Sair da tela cheia devolve a pessoa ao Transmissor
+   * que ela escolheu, porque `promotedId` continua onde foi posto.
+   */
+  function promoteToFullscreen(id: string): void {
+    setPromotedId(id);
+    setModoPreferido("foco");
+    const el = palcoRef.current;
+    if (el && !document.fullscreenElement) void el.requestFullscreen();
   }
 
   const transmitirButton = props.isTransmitting ? (
@@ -118,35 +153,61 @@ export function SessaoScreen(props: SessaoScreenProps) {
 
   return (
     <div className="flex h-screen flex-col">
-      <header className="flex flex-none items-center justify-between border-b border-b-border px-4 py-3">
-        <strong className="font-medium">
-          Código de Sessão: <span className="font-mono tracking-wide">{state.codigoDeSessao}</span>
-        </strong>
-        <button type="button" className="btn btn-ghost" onClick={props.onLeave}>
-          <IconSignOut />
-          Sair
-        </button>
-      </header>
+      <TopBar
+        codigoDeSessao={state.codigoDeSessao}
+        modo={layout.modo}
+        alternadorVisivel={layout.alternadorVisivel}
+        onModoChange={setModoPreferido}
+        transmitirButton={transmitirButton}
+        participantesCount={state.roster.length}
+        drawerOpen={drawerOpen}
+        onToggleDrawer={() => setDrawerOpen((v) => !v)}
+        onLeave={props.onLeave}
+      />
 
       {banner && <div className="flex-none bg-surface px-4 py-2 text-sm text-text-muted">{banner}</div>}
 
-      {state.isAnfitriao &&
-        state.pendingEntryRequests.map((request: EntryRequestEntry) => (
-          <div key={request.participanteId} className="card card-accent mx-4 mt-3 flex flex-none items-center justify-between gap-3">
-            <span>{request.name} pediu para entrar.</span>
-            <span className="flex gap-2">
-              <button type="button" className="btn btn-primary btn-sm" onClick={() => props.onRespondEntry(request.participanteId, true)}>
-                Aprovar
-              </button>
-              <button type="button" className="btn btn-ghost btn-sm" onClick={() => props.onRespondEntry(request.participanteId, false)}>
-                Recusar
-              </button>
-            </span>
-          </div>
-        ))}
+      <div className="flex min-h-0 flex-1">
+        <main className="flex min-w-0 flex-1 flex-col gap-3 p-4">
+          {/*
+           * Faixa empilhável, não modal: dois pedidos simultâneos viram dois modais um sobre o
+           * outro, e aí a pessoa aprova quem não queria (spec 0008, "Aprovação de entrada").
+           */}
+          {state.isAnfitriao &&
+            state.pendingEntryRequests.map((request: EntryRequestEntry) => (
+              <div key={request.participanteId} className="card card-accent flex flex-none items-center justify-between gap-3">
+                <span>{request.name} pediu para entrar.</span>
+                <span className="flex gap-2">
+                  <button
+                    type="button"
+                    className="btn btn-primary btn-sm"
+                    onClick={() => props.onRespondEntry(request.participanteId, true)}
+                  >
+                    Aprovar
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    onClick={() => props.onRespondEntry(request.participanteId, false)}
+                  >
+                    Recusar
+                  </button>
+                </span>
+              </div>
+            ))}
 
-      <div className="flex min-h-0 flex-1 gap-4 p-4">
-        <div className="flex min-w-0 flex-1 flex-col gap-3">
+          <Palco
+            layout={layout}
+            streamsById={streamsById}
+            nameOf={nameOf}
+            stageMeta={stageMeta}
+            palcoRef={palcoRef}
+            onTileClick={tileClick}
+            onPromoteToFullscreen={promoteToFullscreen}
+            onToggleFullscreen={toggleFullscreen}
+            transmitirButton={transmitirButton}
+          />
+
           <QualityIndicator
             frameWidth={frameWidth}
             frameHeight={frameHeight}
@@ -155,65 +216,30 @@ export function SessaoScreen(props: SessaoScreenProps) {
             relayed={relayed}
             onClick={() => setShowDiagnostics((v) => !v)}
           />
+        </main>
 
-          {orderedTransmissorIds.length === 0 ? (
-            <div className="card card-quiet flex flex-1 flex-col items-center justify-center gap-3">
-              <p>Ninguém está transmitindo.</p>
-              {transmitirButton}
-            </div>
-          ) : (
-            <div className="flex min-h-0 flex-1 flex-col gap-2">
-              <div ref={stageRef} className="stage-surface flex min-h-0 flex-1">
-                {stagedId && (
-                  <VideoTile stream={streamsById.get(stagedId)!} label={nameOf(state, stagedId)} onDoubleClick={toggleFullscreen} />
-                )}
-              </div>
-              {thumbnailIds.length > 0 && (
-                <div className="flex flex-none gap-2 overflow-x-auto">
-                  {thumbnailIds.map((id) => (
-                    <VideoTile
-                      key={id}
-                      variant="thumbnail"
-                      stream={streamsById.get(id)!}
-                      label={nameOf(state, id)}
-                      onClick={() => promote(id)}
-                    />
-                  ))}
-                </div>
-              )}
-              <div className="flex-none">{transmitirButton}</div>
-            </div>
-          )}
-
-          {showDiagnostics && (
-            <DiagnosticsPanel
-              diagnostics={props.diagnostics}
-              warnings={props.warnings}
-              onDismissWarning={props.onDismissWarning}
-              onExport={props.onExportDiagnostics}
-            />
-          )}
-        </div>
-
-        <aside className="drawer flex flex-col gap-2">
-          <h3 className="section-label">Participantes</h3>
-          <ul className="m-0 flex list-none flex-col gap-1 p-0">
-            {state.roster.map((p) => (
-              <li key={p.id} className="flex items-center justify-between gap-2">
-                <span className="flex min-w-0 items-center gap-2">
-                  {state.transmissores.includes(p.id) && <span className="dot dot-live" />}
-                  <span className="overflow-hidden text-ellipsis whitespace-nowrap">{p.name}</span>
-                </span>
-                {state.isAnfitriao && p.id !== state.myId && (
-                  <button type="button" className="btn btn-danger btn-sm" onClick={() => props.onExpel(p.id)}>
-                    expulsar
-                  </button>
-                )}
-              </li>
-            ))}
-          </ul>
-        </aside>
+        {drawerOpen && (
+          <ParticipantesDrawer
+            roster={state.roster}
+            transmissores={state.transmissores}
+            myId={state.myId}
+            isAnfitriao={state.isAnfitriao}
+            onExpel={props.onExpel}
+            onClose={() => setDrawerOpen(false)}
+          />
+        )}
       </div>
+
+      {showDiagnostics && (
+        <DiagnosticsPanel
+          diagnostics={props.diagnostics}
+          warnings={props.warnings}
+          nameOf={nameOf}
+          onDismissWarning={props.onDismissWarning}
+          onExport={props.onExportDiagnostics}
+          onClose={() => setShowDiagnostics(false)}
+        />
+      )}
     </div>
   );
 }

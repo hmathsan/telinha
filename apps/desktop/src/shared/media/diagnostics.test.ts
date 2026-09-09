@@ -39,6 +39,23 @@ describe("DiagnosticsSampler", () => {
     expect(snapshot.qualityLimitationReason).toBe("none");
   });
 
+  it("reports the winning candidate pair's RTT in milliseconds", () => {
+    const sampler = new DiagnosticsSampler();
+    const stats = outboundStats();
+    stats.set("pair1", {
+      type: "candidate-pair",
+      localCandidateId: "local1",
+      remoteCandidateId: "remote1",
+      currentRoundTripTime: 0.042,
+    });
+    expect(sampler.sample("conn1", stats).roundTripTimeMs).toBe(42);
+  });
+
+  it("reports a null RTT when the engine does not expose one yet", () => {
+    const sampler = new DiagnosticsSampler();
+    expect(sampler.sample("conn1", outboundStats()).roundTripTimeMs).toBeNull();
+  });
+
   it("computes bitrate from the byte/time delta between two samples", () => {
     const sampler = new DiagnosticsSampler();
     sampler.sample("conn1", outboundStats({ bytesSent: 0, timestamp: 0 }));

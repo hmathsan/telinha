@@ -1,4 +1,4 @@
-import { findFirstStat, type StatsReportLike } from "./webrtcStatsLike.js";
+import { findFirstStat, type StatsLike, type StatsReportLike } from "./webrtcStatsLike.js";
 import { detectRelay, findSelectedCandidatePair, type RelayStatus } from "./relayDetection.js";
 
 export interface CandidatePairSummary {
@@ -15,12 +15,13 @@ export interface ConnectionDiagnosticsSnapshot {
   readonly frameHeight: number | null;
   readonly encoderImplementation: string | null;
   readonly qualityLimitationReason: string | null;
+  /** RTT do par de candidatos vencedor, em milissegundos — a coluna RTT do diagnóstico (0008). */
+  readonly roundTripTimeMs: number | null;
   readonly selectedCandidatePair: CandidatePairSummary | null;
   readonly relay: RelayStatus;
 }
 
-function candidatePairSummary(stats: StatsReportLike): CandidatePairSummary | null {
-  const pair = findSelectedCandidatePair(stats);
+function candidatePairSummary(stats: StatsReportLike, pair: StatsLike | undefined): CandidatePairSummary | null {
   if (!pair) return null;
   const local = pair.localCandidateId ? stats.get(pair.localCandidateId) : undefined;
   const remote = pair.remoteCandidateId ? stats.get(pair.remoteCandidateId) : undefined;
@@ -43,6 +44,7 @@ export class DiagnosticsSampler {
   private readonly priorByKey = new Map<string, PriorByteSample>();
 
   sample(connectionKey: string, stats: StatsReportLike): ConnectionDiagnosticsSnapshot {
+    const selectedPair = findSelectedCandidatePair(stats);
     const outbound = findFirstStat(stats, (s) => s.type === "outbound-rtp" && s.kind === "video");
     const inbound = findFirstStat(stats, (s) => s.type === "inbound-rtp" && s.kind === "video");
 
@@ -68,7 +70,9 @@ export class DiagnosticsSampler {
       frameHeight: frameHeight ?? null,
       encoderImplementation: outbound?.encoderImplementation ?? null,
       qualityLimitationReason: outbound?.qualityLimitationReason ?? null,
-      selectedCandidatePair: candidatePairSummary(stats),
+      roundTripTimeMs:
+        selectedPair?.currentRoundTripTime !== undefined ? Math.round(selectedPair.currentRoundTripTime * 1000) : null,
+      selectedCandidatePair: candidatePairSummary(stats, selectedPair),
       relay: detectRelay(stats),
     };
   }

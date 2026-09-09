@@ -24,6 +24,7 @@ export interface StatsLike {
   readonly frameHeight?: number;
   readonly encoderImplementation?: string;
   readonly qualityLimitationReason?: string;
+  readonly currentRoundTripTime?: number;
   readonly timestamp?: number;
   readonly [key: string]: unknown;
 }

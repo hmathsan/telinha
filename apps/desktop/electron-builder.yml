@@ -1,5 +1,5 @@
 appId: com.pvtbroadcast.desktop
-productName: pvt-broadcast
+productName: Telinha
 directories:
   output: release
 files:

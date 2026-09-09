@@ -56,7 +56,7 @@ O modo alternativo do Palco: todos os Transmissores em células do mesmo tamanho
 escolhe entre Foco e Grade; o alternador só existe com dois ou mais Transmissores.
 _Avoid_: Mosaico, tiles, galeria
 
-**Olhaí**:
+**Telinha**:
 O nome que o app mostra a quem o usa — na Entrada, no título da janela e no atalho instalado.
 É só marca: o nome técnico, em toda parte do código e do repositório, é `scrn-broadcast`
 (veja a [ADR 0008](./docs/adr/0008-nome-dividido-entre-repositorio-e-marca.md)). Não é sinônimo

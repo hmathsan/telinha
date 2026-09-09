@@ -70,7 +70,13 @@ export function sessaoReducer(state: ClientSessaoState, action: ClientSessaoActi
   }
 
   if (action.source === "connect-attempt") {
-    return { ...initialClientSessaoState, pendingMyName: action.connectAction.name };
+    // Quem entra por Código já o conhece — `entry-approved` não o repete, e sem guardá-lo aqui a
+    // barra superior de quem não é Anfitrião ficaria sem o Código para copiar (spec 0008).
+    return {
+      ...initialClientSessaoState,
+      pendingMyName: action.connectAction.name,
+      codigoDeSessao: action.connectAction.kind === "join" ? action.connectAction.codigoDeSessao : null,
+    };
   }
 
   if (action.source === "respond-entry") {

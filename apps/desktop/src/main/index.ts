@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, session } from "electron";
+import { app, BrowserWindow, clipboard, ipcMain, session } from "electron";
 import type { AppToSignalerMessage } from "@pvt-broadcast/protocol";
 import { enableWindowsGraphicsCapture } from "./wgcFlags.js";
 import { applyDebugEncoderOverrides } from "./debugSwitches.js";
@@ -68,11 +68,20 @@ function registerSignalerUrlIpc(): void {
   ipcMain.handle(IPC_CHANNELS.signalerUrl, () => SIGNALER_URL);
 }
 
+// O botão de copiar o Código de Sessão (spec 0008, "Barra superior"). Fica aqui porque o módulo
+// `clipboard` do Electron não existe no renderer, e `navigator.clipboard` depende de permissão.
+function registerClipboardIpc(): void {
+  ipcMain.on(IPC_CHANNELS.clipboardWrite, (_event, text: string) => {
+    clipboard.writeText(text);
+  });
+}
+
 app.whenReady().then(() => {
   registerDisplayMediaHandler();
   registerSessaoIpc();
   registerDiagnosticsIpc();
   registerSignalerUrlIpc();
+  registerClipboardIpc();
   startAutoUpdater();
   mainWindow = createMainWindow();
 

@@ -12,12 +12,12 @@ import {
 } from "../shared/ipc.js";
 
 /**
- * Preload único para a janela principal e para a grade de Fontes (spec 0003, "Captura"): expor
- * as duas APIs aqui é inofensivo em qualquer uma das janelas que não usa a outra, e evita manter
- * dois bundles de preload separados.
+ * Bridge de contexto da janela principal — a única que existe. O seletor de Fonte é um modal
+ * dentro dela (spec 0008, "Seletor de Fonte"), então `picker` fala com o mesmo renderer.
  */
 const pvtBroadcast: PvtBroadcastApi = {
   getSignalerUrl: () => ipcRenderer.invoke(IPC_CHANNELS.signalerUrl) as Promise<string>,
+  copyToClipboard: (text: string) => ipcRenderer.send(IPC_CHANNELS.clipboardWrite, text),
   connect: (action: ConnectAction) => ipcRenderer.send(IPC_CHANNELS.sessaoConnect, action),
   send: (message: AppToSignalerMessage) => ipcRenderer.send(IPC_CHANNELS.sessaoSend, message),
   leave: () => ipcRenderer.send(IPC_CHANNELS.sessaoLeave),
@@ -36,6 +36,11 @@ const pvtBroadcast: PvtBroadcastApi = {
 };
 
 const picker: PickerApi = {
+  onOpenChange: (callback: (open: boolean) => void) => {
+    const listener = (_event: IpcRendererEvent, open: boolean): void => callback(open);
+    ipcRenderer.on(IPC_CHANNELS.pickerOpen, listener);
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.pickerOpen, listener);
+  },
   onSources: (callback: (sources: readonly FontePickerItem[]) => void) => {
     const listener = (_event: IpcRendererEvent, sources: readonly FontePickerItem[]): void => callback(sources);
     ipcRenderer.on(IPC_CHANNELS.pickerSources, listener);

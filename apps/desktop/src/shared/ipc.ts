@@ -13,6 +13,8 @@ export const IPC_CHANNELS = {
   sessaoConnectionState: "sessao:connection-state",
   diagnosticsExport: "diagnostics:export",
   signalerUrl: "app:signaler-url",
+  clipboardWrite: "app:clipboard-write",
+  pickerOpen: "picker:open",
   pickerSources: "picker:sources",
   pickerChoose: "picker:choose",
   pickerCancel: "picker:cancel",
@@ -20,7 +22,8 @@ export const IPC_CHANNELS = {
 
 /**
  * Uma Fonte candidata no seletor (main process, via `desktopCapturer.getSources`). A miniatura
- * já vem como data URL PNG, pronta para um `<img>` — o grid é "estilo Discord" (spec 0003).
+ * já vem como data URL PNG, pronta para um `<img>`. O processo principal continua dono da
+ * enumeração mesmo com o seletor virando modal na própria janela (spec 0008, "Seletor de Fonte").
  */
 export interface FontePickerItem {
   readonly id: string;
@@ -30,6 +33,8 @@ export interface FontePickerItem {
 }
 
 export interface PickerApi {
+  /** O processo principal abre e fecha o modal: quem pede a Fonte é `getDisplayMedia`, não a UI. */
+  onOpenChange(callback: (open: boolean) => void): () => void;
   onSources(callback: (sources: readonly FontePickerItem[]) => void): () => void;
   choose(sourceId: string): void;
   cancel(): void;
@@ -56,6 +61,11 @@ export interface DiagnosticsExportResult {
 
 export interface PvtBroadcastApi {
   getSignalerUrl(): Promise<string>;
+  /**
+   * `navigator.clipboard` depende de permissão do Chromium. O módulo `clipboard` do Electron não
+   * depende — mas ele não existe no processo do renderer, então quem escreve é o principal.
+   */
+  copyToClipboard(text: string): void;
   connect(action: ConnectAction): void;
   send(message: AppToSignalerMessage): void;
   leave(): void;

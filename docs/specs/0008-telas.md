@@ -16,7 +16,7 @@ dele **não** entra, para ninguém reintroduzir por engano ao consultar o mock.
 Um elemento comum no topo do conteúdo — **não** a moldura da janela. A janela continua com a
 barra de título nativa do Windows, e nada em `mainWindow.ts` muda.
 
-Da esquerda para a direita: marca **Olhaí**, o **Código de Sessão** com botão de copiar, um
+Da esquerda para a direita: marca **Telinha**, o **Código de Sessão** com botão de copiar, um
 espaçador, o alternador Foco/Grade, o botão de transmitir, o botão com a contagem de Participantes
 que abre a gaveta, e Sair.
 

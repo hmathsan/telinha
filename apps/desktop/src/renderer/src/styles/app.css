@@ -95,26 +95,83 @@
 
 /*
  * Peças do app que não são do Nocturne nem cabem em utilitário de layout: medidas próprias do
- * produto (a largura da miniatura, a coluna da Entrada) e a moldura de vídeo. Ficam aqui, num
- * arquivo só, pelo mesmo motivo dos tokens — nunca como estilo inline dentro do TSX.
+ * produto (a largura da miniatura, a coluna da Entrada) e as superfícies das telas da spec 0008.
+ * Ficam aqui, num arquivo só, pelo mesmo motivo dos tokens — nunca como estilo inline no TSX.
  */
 :root {
-  --size-thumb: 160px;
-  --size-source-card: 160px;
-  --size-entry-column: 360px;
-  --size-drawer: 220px;
+  --size-thumb: 190px;
+  --size-source-card: 190px;
+  --size-entry-column: 420px;
+  --size-drawer: 300px;
+  --size-grade-cell: 300px;
+  --size-dialog: 880px;
+  --size-dialog-height: 560px;
+  --size-avatar: 28px;
 }
+
+/* ── Entrada ────────────────────────────────────────────────────────────── */
 
 .entry-column {
   width: 100%;
   max-width: var(--size-entry-column);
 }
 
-.source-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(var(--size-source-card), 1fr));
+.entry-tagline {
+  color: var(--color-text);
+  font-size: var(--font-size-xl);
+  line-height: var(--font-leading-tight);
+}
+
+/* ── Barra superior ─────────────────────────────────────────────────────── */
+
+/*
+ * Um elemento comum no topo do conteúdo, e não a moldura da janela: a barra de título nativa do
+ * Windows continua no lugar (spec 0008, "Barra superior").
+ */
+.topbar {
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-accent-600);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-medium);
+  letter-spacing: var(--font-tracking-tight);
+}
+
+/* A marca em tamanho de título, só na Entrada. Depois de `.brand` de propósito: mesma
+ * especificidade, então quem manda é a ordem — na barra superior ela fica no tamanho de `.brand`. */
+.brand-lg {
+  font-size: calc(var(--font-size-2xl) * 1.35);
   gap: var(--space-3);
 }
+
+.codigo-de-sessao {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-md);
+  letter-spacing: var(--font-tracking-wide);
+}
+
+/* Alternador Foco/Grade: um grupo, não dois botões soltos. */
+.segmented {
+  display: inline-flex;
+  gap: var(--space-1);
+  padding: var(--space-1);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-well);
+}
+
+.segmented .btn {
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--font-size-sm);
+}
+
+/* ── Palco ──────────────────────────────────────────────────────────────── */
 
 .stage-surface {
   border-radius: var(--radius-lg);
@@ -122,29 +179,85 @@
   overflow: hidden;
 }
 
+/*
+ * Em tela cheia, só o Palco: a faixa de miniaturas sai, porque quem pediu tela cheia pediu para
+ * ver uma Fonte grande, não para ver a mesma tela com uma borda a menos.
+ */
+.palco-surface:fullscreen {
+  background: var(--color-well);
+}
+
+.palco-surface:fullscreen .palco-thumbs {
+  display: none;
+}
+
+.palco-surface:fullscreen .stage-surface {
+  border-radius: 0;
+}
+
+.palco-grade {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(var(--size-grade-cell), 1fr));
+  align-content: center;
+  gap: var(--space-3);
+  overflow-y: auto;
+}
+
+.empty-palco-icon {
+  font-size: calc(var(--font-size-2xl) * 2);
+  color: var(--color-text-dim);
+}
+
 .video-frame {
   position: relative;
   min-width: 0;
+  overflow: hidden;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: var(--color-well);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+
+button.video-frame {
+  cursor: pointer;
+  transition: border-color 120ms ease;
+}
+
+button.video-frame:hover {
+  border-color: var(--color-accent-400);
+}
+
+/* O Palco preenche a altura disponível; a proporção quem dita é o vídeo, com `contain`. */
+.video-frame-stage {
+  flex: 1 1 auto;
+  height: 100%;
 }
 
 .video-frame-thumb {
   flex: 0 0 auto;
   width: var(--size-thumb);
+  aspect-ratio: 16 / 9;
+}
+
+.video-frame-cell {
+  width: 100%;
+  aspect-ratio: 16 / 9;
 }
 
 .video-frame video {
   display: block;
   width: 100%;
-  aspect-ratio: 16 / 9;
+  height: 100%;
   object-fit: contain;
-  border-radius: var(--radius-md);
   background: var(--color-well);
 }
 
-.video-frame-label {
+.video-frame-label,
+.video-frame-meta {
   position: absolute;
-  left: var(--space-2);
-  bottom: var(--space-2);
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
@@ -160,10 +273,146 @@
   white-space: nowrap;
 }
 
+.video-frame-label {
+  left: var(--space-2);
+  bottom: var(--space-2);
+}
+
+/* Canto oposto ao nome, no Palco em Foco: resolução e taxa (spec 0008, "Palco"). */
+.video-frame-meta {
+  right: var(--space-2);
+  top: var(--space-2);
+  color: var(--color-neutral-800);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Gaveta de Participantes ────────────────────────────────────────────── */
+
 .drawer {
   flex: 0 0 var(--size-drawer);
+  border-left: 1px solid var(--color-border);
+  background: var(--color-surface);
   overflow-y: auto;
 }
+
+.avatar {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--size-avatar);
+  height: var(--size-avatar);
+  border: 1px solid var(--color-accent-300);
+  border-radius: var(--radius-full);
+  background: var(--color-accent-100);
+  color: var(--color-accent-700);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  text-transform: uppercase;
+}
+
+.participante-papel {
+  color: var(--color-text-dim);
+  font-size: var(--font-size-xs);
+  line-height: var(--font-leading-tight);
+}
+
+/* ── Diagnóstico ────────────────────────────────────────────────────────── */
+
+/* Gaveta inferior sobre a Sessão, não uma seção que empurra o Palco (spec 0008, "Diagnóstico"). */
+.diagnostics-drawer {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 40;
+  max-height: 50vh;
+  border-top: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  background: var(--color-bg);
+  box-shadow: var(--shadow-lg);
+}
+
+/* ── Seletor de Fonte ───────────────────────────────────────────────────── */
+
+/* Altura fixa: a lista se atualiza a cada segundo, e um diálogo que muda de tamanho junto pula. */
+.dialog-wide {
+  max-width: var(--size-dialog);
+  height: 100%;
+  max-height: var(--size-dialog-height);
+}
+
+.tabs {
+  display: inline-flex;
+  gap: var(--space-1);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.tab {
+  padding: var(--space-2) var(--space-4);
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-family: inherit;
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  transition:
+    color 120ms ease,
+    border-color 120ms ease;
+}
+
+.tab:hover {
+  color: var(--color-text);
+}
+
+.tab[aria-selected="true"] {
+  border-bottom-color: var(--color-accent-500);
+  color: var(--color-text);
+}
+
+.source-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(var(--size-source-card), 1fr));
+  gap: var(--space-3);
+}
+
+/* A sobreposição do hover traz "Transmitir" — o alvo de clique é o cartão inteiro. */
+.source-card {
+  position: relative;
+}
+
+.source-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  background: var(--color-scrim);
+  color: var(--color-neutral-900);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.source-card:hover .source-overlay,
+.source-card:focus-visible .source-overlay {
+  opacity: 1;
+}
+
+.source-thumb {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: var(--radius-sm);
+  background: var(--color-well);
+  object-fit: cover;
+}
+
+/* ── Diversos ───────────────────────────────────────────────────────────── */
 
 .section-label {
   display: flex;
