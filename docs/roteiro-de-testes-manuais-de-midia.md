@@ -31,8 +31,8 @@ separadas.
    Participante assim, variando `--user-data-dir`:
 
    ```bash
-   npx electron out/main/index.js --user-data-dir=/tmp/pvt-broadcast-p1
-   npx electron out/main/index.js --user-data-dir=/tmp/pvt-broadcast-p2
+   npx electron out/main/index.js --user-data-dir=/tmp/scrn-broadcast-p1
+   npx electron out/main/index.js --user-data-dir=/tmp/scrn-broadcast-p2
    ```
 
    Repita para quantos Participantes o passo pedir. Dê nomes diferentes em cada instância na
@@ -45,7 +45,7 @@ inteiro. Numa segunda instância, entre com o Código de Sessão, seja aprovado,
 tela do monitor aparece no Palco.
 
 **Janela de aplicação — o primeiro teste do projeto.** Transmita a janela de um app qualquer
-(não o próprio pvt-broadcast). Observe a borda amarela do Windows:
+(não o próprio scrn-broadcast). Observe a borda amarela do Windows:
 
 - **O que observar:** a borda aparece só na tela de quem transmite, ou também na do Espectador?
   Se for só local, não há nada a corrigir (ver [ADR 0006](./adr/0006-a-borda-amarela-fica.md)).
@@ -80,7 +80,7 @@ diagnóstico de cada Transmissor, olhe a coluna Encoder.
 **Queda forçada para software.** Fixe uma instância Transmissora com a variável de ambiente:
 
 ```bash
-PVT_BROADCAST_DISABLE_HW_ENCODE=1 npx electron out/main/index.js --user-data-dir=/tmp/pvt-broadcast-p1
+SCRN_BROADCAST_DISABLE_HW_ENCODE=1 npx electron out/main/index.js --user-data-dir=/tmp/scrn-broadcast-p1
 ```
 
 Transmita a partir dela.

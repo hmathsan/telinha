@@ -8,7 +8,7 @@ import { app } from "electron";
  * Electron que ele lança. Uma variável de ambiente evita esse problema por completo.
  */
 export function applyDebugEncoderOverrides(): void {
-  if (process.env["PVT_BROADCAST_DISABLE_HW_ENCODE"] === "1") {
+  if (process.env["SCRN_BROADCAST_DISABLE_HW_ENCODE"] === "1") {
     app.commandLine.appendSwitch("disable-accelerated-video-encode");
   }
 }

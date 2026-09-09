@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { initialClientSessaoState, sessaoReducer, type ClientSessaoState } from "./clientSessaoState.js";
-import type { SignalerToAppMessage } from "@pvt-broadcast/protocol";
+import type { SignalerToAppMessage } from "@scrn-broadcast/protocol";
 
 function signaler(state: ClientSessaoState, message: SignalerToAppMessage): ClientSessaoState {
   return sessaoReducer(state, { source: "signaler", message });

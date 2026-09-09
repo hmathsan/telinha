@@ -1,6 +1,6 @@
 import { createExecutionContext, waitOnExecutionContext } from "cloudflare:test";
 import { env } from "cloudflare:workers";
-import type { AppToSignalerMessage, SignalerToAppMessage } from "@pvt-broadcast/protocol";
+import type { AppToSignalerMessage, SignalerToAppMessage } from "@scrn-broadcast/protocol";
 import worker from "../src/index.js";
 import type { Env } from "../src/env.js";
 

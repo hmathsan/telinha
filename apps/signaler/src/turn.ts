@@ -1,4 +1,4 @@
-import type { IceServer } from "@pvt-broadcast/protocol";
+import type { IceServer } from "@scrn-broadcast/protocol";
 
 // ADR 0007: a Cloudflare não tem teto de gasto próprio para o TURN relay. Este módulo é o
 // desligador — consulta o egresso acumulado do mês e nega credenciais TURN acima do limite

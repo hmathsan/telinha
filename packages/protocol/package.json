@@ -1,5 +1,5 @@
 {
-  "name": "@pvt-broadcast/protocol",
+  "name": "@scrn-broadcast/protocol",
   "private": true,
   "version": "0.0.0",
   "description": "Mensagens, limites e máquina de estados da Sessão. Node puro, sem Electron/React/WebRTC.",

@@ -1,4 +1,4 @@
-import { MAX_PARTICIPANTES, MAX_TRANSMISSORES, PROTOCOL_VERSION } from "@pvt-broadcast/protocol";
+import { MAX_PARTICIPANTES, MAX_TRANSMISSORES, PROTOCOL_VERSION } from "@scrn-broadcast/protocol";
 import { expect, test } from "vitest";
 import { connect, nextMessage, send } from "./helpers.js";
 

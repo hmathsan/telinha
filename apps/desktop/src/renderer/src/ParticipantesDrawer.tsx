@@ -1,4 +1,4 @@
-import type { Participante } from "@pvt-broadcast/protocol";
+import type { Participante } from "@scrn-broadcast/protocol";
 import { IconX } from "./components/icons/index.js";
 
 export interface ParticipantesDrawerProps {

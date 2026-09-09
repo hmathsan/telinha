@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from "electron";
-import type { AppToSignalerMessage, SignalerToAppMessage } from "@pvt-broadcast/protocol";
+import type { AppToSignalerMessage, SignalerToAppMessage } from "@scrn-broadcast/protocol";
 import {
   IPC_CHANNELS,
   type ConnectAction,
@@ -7,7 +7,7 @@ import {
   type DiagnosticsExportResult,
   type FontePickerItem,
   type PickerApi,
-  type PvtBroadcastApi,
+  type ScrnBroadcastApi,
   type SignalingConnectionState,
 } from "../shared/ipc.js";
 
@@ -15,7 +15,7 @@ import {
  * Bridge de contexto da janela principal — a única que existe. O seletor de Fonte é um modal
  * dentro dela (spec 0008, "Seletor de Fonte"), então `picker` fala com o mesmo renderer.
  */
-const pvtBroadcast: PvtBroadcastApi = {
+const scrnBroadcast: ScrnBroadcastApi = {
   getSignalerUrl: () => ipcRenderer.invoke(IPC_CHANNELS.signalerUrl) as Promise<string>,
   copyToClipboard: (text: string) => ipcRenderer.send(IPC_CHANNELS.clipboardWrite, text),
   connect: (action: ConnectAction) => ipcRenderer.send(IPC_CHANNELS.sessaoConnect, action),
@@ -52,5 +52,5 @@ const picker: PickerApi = {
   cancel: () => ipcRenderer.send(IPC_CHANNELS.pickerCancel),
 };
 
-contextBridge.exposeInMainWorld("pvtBroadcast", pvtBroadcast);
+contextBridge.exposeInMainWorld("scrnBroadcast", scrnBroadcast);
 contextBridge.exposeInMainWorld("picker", picker);

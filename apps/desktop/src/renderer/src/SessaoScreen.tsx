@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from "react";
-import { MAX_TRANSMISSORES } from "@pvt-broadcast/protocol";
+import { MAX_TRANSMISSORES } from "@scrn-broadcast/protocol";
 import type { ClientSessaoState, EntryRequestEntry } from "../../shared/clientSessaoState.js";
 import type { SignalingConnectionState } from "../../shared/ipc.js";
 import { isConnectionDegraded } from "../../shared/media/connectionQuality.js";

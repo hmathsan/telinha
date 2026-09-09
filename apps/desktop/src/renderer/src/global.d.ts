@@ -1,9 +1,9 @@
 /// <reference types="vite/client" />
-import type { PickerApi, PvtBroadcastApi } from "../../shared/ipc.js";
+import type { PickerApi, ScrnBroadcastApi } from "../../shared/ipc.js";
 
 declare global {
   interface Window {
-    readonly pvtBroadcast: PvtBroadcastApi;
+    readonly scrnBroadcast: ScrnBroadcastApi;
     readonly picker: PickerApi;
   }
 }

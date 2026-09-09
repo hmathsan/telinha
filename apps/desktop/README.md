@@ -24,7 +24,7 @@ sobre ele são a spec [0008](../../docs/specs/0008-telas.md).
   reducer que espelha o estado da Sessão do lado do app (spec 0002: "os apps mantêm uma cópia para renderizar a UI"). `npm test` roda só
   isto — a malha de WebRTC de verdade é validação manual (spec 0006).
 
-Depende de `@pvt-broadcast/protocol` para as mensagens e a máquina de estados da Sessão — a
+Depende de `@scrn-broadcast/protocol` para as mensagens e a máquina de estados da Sessão — a
 lógica de roster/admissão/Palco não é reimplementada aqui (ver
 [ADR 0003](../../docs/adr/0003-monorepo-com-nucleo-sem-ui.md)).
 
@@ -32,7 +32,7 @@ lógica de roster/admissão/Palco não é reimplementada aqui (ver
 
 ```
 cp .env.example .env   # opcional; sem isso usa ws://localhost:8787
-npm run dev             # nesta pasta, ou "npm run dev -w @pvt-broadcast/desktop" na raiz
+npm run dev             # nesta pasta, ou "npm run dev -w @scrn-broadcast/desktop" na raiz
 ```
 
 Precisa de um sinalizador rodando (`npm run dev` em `apps/signaler`, que sobe `wrangler dev` em
@@ -68,11 +68,11 @@ Chromium, e nem o npm nem o `electron-vite dev` a repassam para o processo do El
 lançam. Use a variável de ambiente:
 
 ```
-PVT_BROADCAST_DISABLE_HW_ENCODE=1 npm run dev -w @pvt-broadcast/desktop
+SCRN_BROADCAST_DISABLE_HW_ENCODE=1 npm run dev -w @scrn-broadcast/desktop
 ```
 
 No PowerShell:
 
 ```
-$env:PVT_BROADCAST_DISABLE_HW_ENCODE = '1'; npm run dev -w @pvt-broadcast/desktop
+$env:SCRN_BROADCAST_DISABLE_HW_ENCODE = '1'; npm run dev -w @scrn-broadcast/desktop
 ```

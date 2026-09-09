@@ -1,5 +1,5 @@
 import { app, BrowserWindow, clipboard, ipcMain, session } from "electron";
-import type { AppToSignalerMessage } from "@pvt-broadcast/protocol";
+import type { AppToSignalerMessage } from "@scrn-broadcast/protocol";
 import { enableWindowsGraphicsCapture } from "./wgcFlags.js";
 import { applyDebugEncoderOverrides } from "./debugSwitches.js";
 import { createMainWindow } from "./mainWindow.js";

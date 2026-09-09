@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useReducer, useRef, useState, type Dispatch, type SetStateAction } from "react";
-import type { AppToSignalerMessage, SignalerToAppMessage } from "@pvt-broadcast/protocol";
+import type { AppToSignalerMessage, SignalerToAppMessage } from "@scrn-broadcast/protocol";
 import { initialClientSessaoState, sessaoReducer } from "../../shared/clientSessaoState.js";
 import type { ConnectAction, SignalingConnectionState } from "../../shared/ipc.js";
 import { MeshManager, type ConnectionDiagnostics, type MeshManagerHandlers } from "./media/meshManager.js";
@@ -17,7 +17,7 @@ function buildHandlers(
 ): MeshManagerHandlers {
   return {
     sendSignal: (toParticipanteId, payload) => {
-      window.pvtBroadcast.send({ type: "signal", toParticipanteId, payload });
+      window.scrnBroadcast.send({ type: "signal", toParticipanteId, payload });
     },
     onRemoteStream: (transmissorId, stream) => {
       setRemoteStreams((prev) => new Map(prev).set(transmissorId, stream));
@@ -66,7 +66,7 @@ export function useSessao() {
   const previousMyIdRef = useRef<string | null>(null);
   const meshRef = useRef<MeshManager | null>(null);
 
-  const send = useCallback((message: AppToSignalerMessage) => window.pvtBroadcast.send(message), []);
+  const send = useCallback((message: AppToSignalerMessage) => window.scrnBroadcast.send(message), []);
 
   // Uma malha nova a cada conexão (não só na primeira): reaproveitar a instância anterior depois
   // de `close()` deixaria o timer de diagnóstico morto para a próxima Sessão — `close()` para
@@ -151,11 +151,11 @@ export function useSessao() {
       }
     }
 
-    const offMessage = window.pvtBroadcast.onMessage((message) => {
+    const offMessage = window.scrnBroadcast.onMessage((message) => {
       dispatch({ source: "signaler", message });
       routeToMesh(message);
     });
-    const offState = window.pvtBroadcast.onConnectionState((connectionState) => {
+    const offState = window.scrnBroadcast.onConnectionState((connectionState) => {
       setConnectionState(connectionState);
       if (connectionState.status === "closed") {
         // O Durable Object fecha o WebSocket sem mensagem alguma ao expulsar ou ao encerrar uma
@@ -187,7 +187,7 @@ export function useSessao() {
       meshRef.current = createMesh();
       previousMyIdRef.current = null;
       dispatch({ source: "connect-attempt", connectAction: action });
-      window.pvtBroadcast.connect(action);
+      window.scrnBroadcast.connect(action);
     },
     [createMesh],
   );
@@ -217,7 +217,7 @@ export function useSessao() {
 
   const leave = useCallback(() => {
     meshRef.current?.close();
-    window.pvtBroadcast.leave();
+    window.scrnBroadcast.leave();
     dispatch({ source: "reset" });
     setIsTransmitting(false);
     setLocalStream(null);
@@ -236,8 +236,8 @@ export function useSessao() {
       myId: state.myId,
       connections: diagnostics,
     };
-    return window.pvtBroadcast.exportDiagnostics({
-      suggestedFileName: `pvt-broadcast-diagnostico-${Date.now()}.json`,
+    return window.scrnBroadcast.exportDiagnostics({
+      suggestedFileName: `scrn-broadcast-diagnostico-${Date.now()}.json`,
       content: JSON.stringify(payload, null, 2),
     });
   }, [state.codigoDeSessao, state.myId, diagnostics]);

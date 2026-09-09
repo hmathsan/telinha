@@ -1,5 +1,5 @@
 {
-  "name": "@pvt-broadcast/desktop",
+  "name": "@scrn-broadcast/desktop",
   "private": true,
   "version": "0.0.0",
   "description": "Electron + React + Vite. Implementado pelas specs 0003 (malha de mídia), 0004 (interface), 0005 (empacotamento), 0007 (sistema visual) e 0008 (telas).",
@@ -15,7 +15,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.web.json --noEmit"
   },
   "dependencies": {
-    "@pvt-broadcast/protocol": "*",
+    "@scrn-broadcast/protocol": "*",
     "electron-updater": "6.8.9",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",

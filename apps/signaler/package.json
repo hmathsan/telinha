@@ -1,5 +1,5 @@
 {
-  "name": "@pvt-broadcast/signaler",
+  "name": "@scrn-broadcast/signaler",
   "private": true,
   "version": "0.0.0",
   "description": "Cloudflare Worker + Durable Object por Sessão. Implementado pela spec 0002.",
@@ -10,7 +10,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@pvt-broadcast/protocol": "*"
+    "@scrn-broadcast/protocol": "*"
   },
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "^0.22.0",

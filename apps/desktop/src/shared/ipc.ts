@@ -1,4 +1,4 @@
-import type { AppToSignalerMessage, SignalerToAppMessage } from "@pvt-broadcast/protocol";
+import type { AppToSignalerMessage, SignalerToAppMessage } from "@scrn-broadcast/protocol";
 
 /**
  * Nomes de canal IPC entre `main` e `renderer`. O WebSocket de sinalização vive no processo
@@ -59,7 +59,7 @@ export interface DiagnosticsExportResult {
   readonly savedPath: string | null;
 }
 
-export interface PvtBroadcastApi {
+export interface ScrnBroadcastApi {
   getSignalerUrl(): Promise<string>;
   /**
    * `navigator.clipboard` depende de permissão do Chromium. O módulo `clipboard` do Electron não

@@ -10,7 +10,7 @@ import {
   type SessaoState,
   type SignalerToAppMessage,
   type TransitionResult,
-} from "@pvt-broadcast/protocol";
+} from "@scrn-broadcast/protocol";
 import type { Env } from "./env.js";
 import { buildIceServers } from "./turn.js";
 

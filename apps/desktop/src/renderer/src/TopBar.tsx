@@ -37,7 +37,7 @@ export function TopBar(props: TopBarProps) {
 
   function copyCodigo(): void {
     if (!props.codigoDeSessao) return;
-    window.pvtBroadcast.copyToClipboard(props.codigoDeSessao);
+    window.scrnBroadcast.copyToClipboard(props.codigoDeSessao);
     setCopied(true);
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(() => setCopied(false), COPIED_FEEDBACK_MS);

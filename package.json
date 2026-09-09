@@ -1,5 +1,5 @@
 {
-  "name": "pvt-broadcast",
+  "name": "scrn-broadcast",
   "private": true,
   "version": "0.0.0",
   "description": "Compartilhamento de tela P2P entre um pequeno grupo de amigos.",

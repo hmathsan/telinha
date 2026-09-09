@@ -1,4 +1,4 @@
-import { PROTOCOL_VERSION } from "@pvt-broadcast/protocol";
+import { PROTOCOL_VERSION } from "@scrn-broadcast/protocol";
 import { runDurableObjectAlarm } from "cloudflare:test";
 import { env } from "cloudflare:workers";
 import { expect, test } from "vitest";

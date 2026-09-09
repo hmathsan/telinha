@@ -1,4 +1,4 @@
-import { generateCodigoDeSessao } from "@pvt-broadcast/protocol";
+import { generateCodigoDeSessao } from "@scrn-broadcast/protocol";
 import type { Env } from "./env.js";
 
 export { SessaoDurableObject } from "./durableObject.js";

@@ -1,4 +1,4 @@
-appId: com.pvtbroadcast.desktop
+appId: com.scrnbroadcast.desktop
 productName: Telinha
 directories:
   output: release

@@ -3,7 +3,7 @@ import {
   signalerToAppMessageSchema,
   type AppToSignalerMessage,
   type SignalerToAppMessage,
-} from "@pvt-broadcast/protocol";
+} from "@scrn-broadcast/protocol";
 import WebSocket from "ws";
 import { nextBackoffDelayMs } from "../shared/backoff.js";
 import type { ConnectAction, SignalingConnectionState } from "../shared/ipc.js";

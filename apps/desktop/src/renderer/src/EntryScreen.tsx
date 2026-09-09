@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { EntryRefusedReason, SessaoEndedReason } from "@pvt-broadcast/protocol";
+import type { EntryRefusedReason, SessaoEndedReason } from "@scrn-broadcast/protocol";
 import { formatCodigoDeSessao, isCodigoDeSessaoCompleto, normalizeCodigoDeSessao } from "../../shared/codigoDeSessao.js";
 import type { ConnectAction } from "../../shared/ipc.js";
 import { IconBroadcast, IconWarningCircle } from "./components/icons/index.js";
@@ -21,7 +21,7 @@ const DISCONNECT_REASON_MESSAGES: Record<string, string> = {
   "anfitriao-connection-lost": "A conexão com a Sessão foi perdida.",
 };
 
-const NAME_STORAGE_KEY = "pvt-broadcast:name";
+const NAME_STORAGE_KEY = "scrn-broadcast:name";
 
 /** Os quatro motivos de recusa e os de desconexão, numa faixa de aviso do Nocturne (spec 0008). */
 function Notice({ tone, children }: { readonly tone: "warn" | "danger"; readonly children: string }) {

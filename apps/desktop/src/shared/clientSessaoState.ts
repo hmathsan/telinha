@@ -5,7 +5,7 @@ import type {
   Participante,
   SessaoEndedReason,
   SignalerToAppMessage,
-} from "@pvt-broadcast/protocol";
+} from "@scrn-broadcast/protocol";
 import type { ConnectAction } from "./ipc.js";
 
 /**
