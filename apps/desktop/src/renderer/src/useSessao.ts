@@ -61,17 +61,6 @@ export function useSessao() {
   const [warnings, setWarnings] = useState<QualityWarning[]>([]);
   const [isTransmitting, setIsTransmitting] = useState(false);
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
-  /**
-   * Muda toda vez que a captura local é desmontada. Entra na `key` das Fontes do Palco
-   * (`Palco.tsx`), forçando elementos `<video>` novos para quem sobrou.
-   *
-   * Parar de transmitir fecha todas as peer connections de saída e chama `track.stop()` na captura
-   * no mesmo instante, e o `<video>` de quem continua trava preto — só em quem parou, que é quem
-   * passa por esse desmonte. Nada no layout muda para esse elemento quando quem parou era a
-   * miniatura, então sem esta época ele nunca é recriado: com um Transmissor só, o alternador
-   * Foco/Grade some e não sobra nem gesto para forçar o remonte.
-   */
-  const [mediaEpoch, setMediaEpoch] = useState(0);
 
   const stateRef = useRef(state);
   stateRef.current = state;
@@ -179,12 +168,6 @@ export function useSessao() {
             unwatchLocalTrack();
             setIsTransmitting(false);
             setLocalStream(null);
-            setMediaEpoch((epoch) => epoch + 1);
-            // Se o quadro preto voltar, esta linha diz se a época chegou a mudar: ou o remonte
-            // aconteceu e a causa é outra, ou não aconteceu e o gatilho não é o que eu suponho.
-            logToMain("info", "local-transmission-stopped", {
-              transmissoresRestantes: message.participanteIds.length,
-            });
           }
           break;
         }
@@ -195,8 +178,6 @@ export function useSessao() {
             for (const track of pendingStreamRef.current.getTracks()) track.stop();
             pendingStreamRef.current = null;
             setLocalStream(null);
-            // Mesmo `track.stop()` do ramo acima, mesmo estrago nos `<video>` que já estavam no ar.
-            setMediaEpoch((epoch) => epoch + 1);
           }
           break;
 
@@ -321,7 +302,6 @@ export function useSessao() {
     warnings,
     isTransmitting,
     localStream,
-    mediaEpoch,
     connect,
     respondEntry,
     startTransmitindo,

@@ -5,6 +5,7 @@ import type { SignalingConnectionState } from "../../shared/ipc.js";
 import { isConnectionDegraded } from "../../shared/media/connectionQuality.js";
 import { selectPalcoClick, selectPalcoLayout, type ModoPalco } from "../../shared/palcoSelection.js";
 import type { ConnectionDiagnostics } from "./media/meshManager.js";
+import { useVideoSurfaces } from "./media/videoSurfaces.js";
 import type { QualityWarning } from "./useSessao.js";
 import { DiagnosticsPanel } from "./DiagnosticsPanel.js";
 import { Palco } from "./Palco.js";
@@ -22,8 +23,6 @@ export interface SessaoScreenProps {
   readonly warnings: readonly QualityWarning[];
   readonly isTransmitting: boolean;
   readonly localStream: MediaStream | null;
-  /** Ver `useSessao`: muda quando a captura local é desmontada, e recria as Fontes do Palco. */
-  readonly mediaEpoch: number;
   readonly onRespondEntry: (participanteId: string, approved: boolean) => void;
   readonly onStartTransmitindo: () => void;
   readonly onReleasePalco: () => void;
@@ -62,6 +61,9 @@ export function SessaoScreen(props: SessaoScreenProps) {
     if (props.isTransmitting && props.localStream && state.myId) map.set(state.myId, props.localStream);
     return map;
   }, [props.remoteStreams, props.isTransmitting, props.localStream, state.myId]);
+
+  // Os `<video>` vivem aqui, não dentro do Palco: o layout muda o tempo todo, o elemento não.
+  const surfaceOf = useVideoSurfaces(streamsById);
 
   // Todas as regras de layout — alternador, ordem das células, quem está no Palco, e a volta para
   // Foco quando um Transmissor sai da Grade — vivem fora do React (spec 0008).
@@ -178,8 +180,7 @@ export function SessaoScreen(props: SessaoScreenProps) {
 
           <Palco
             layout={layout}
-            streamsById={streamsById}
-            mediaEpoch={props.mediaEpoch}
+            surfaceOf={surfaceOf}
             nameOf={nameOf}
             stageMeta={stageMeta}
             palcoRef={palcoRef}

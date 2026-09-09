@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 
 export type VideoTileVariant = "stage" | "thumbnail" | "cell";
 
@@ -10,7 +10,12 @@ export type VideoTileVariant = "stage" | "thumbnail" | "cell";
 const DOUBLE_CLICK_DELAY_MS = 250;
 
 export interface VideoTileProps {
-  readonly stream: MediaStream;
+  /**
+   * O `<video>` do Transmissor, vivo desde que a mídia dele chegou (`media/videoSurfaces.ts`).
+   * Este componente o hospeda, não o cria: o quadro pode remontar à vontade que a imagem
+   * continua — é isso que resolve o quadro preto ao começar ou parar de transmitir.
+   */
+  readonly surface: HTMLVideoElement | null;
   readonly label: string;
   /** "stage" ocupa o Palco; "thumbnail" é a faixa do Foco; "cell" é uma célula da Grade. */
   readonly variant?: VideoTileVariant;
@@ -26,38 +31,23 @@ const VARIANT_CLASS: Record<VideoTileVariant, string> = {
   cell: "video-frame-cell",
 };
 
-export function VideoTile({ stream, label, variant = "stage", meta = null, onClick, onDoubleClick }: VideoTileProps) {
-  const videoRef = useRef<HTMLVideoElement | null>(null);
+export function VideoTile({ surface, label, variant = "stage", meta = null, onClick, onDoubleClick }: VideoTileProps) {
   const pendingClickRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  /**
-   * Um `<video>` de MediaStream não retoma sozinho depois de ser interrompido: fica no último
-   * quadro, ou preto. É o que acontece com quem continua transmitindo quando outra pessoa para —
-   * `stopTransmitting` fecha as peer connections de saída e chama `track.stop()` na captura no
-   * mesmo instante, e o elemento trava. Quem força elemento novo é a `mediaEpoch` na `key`
-   * (`Palco.tsx`), porque quando quem parou era a miniatura nada no layout deste elemento muda.
-   * O que fica aqui é o resto: garantir que um elemento novo comece a tocar, e devolver ao ar um
-   * que se interrompa por conta própria.
-   */
-  useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
-    if (video.srcObject !== stream) video.srcObject = stream;
-
-    const play = (): void => {
-      void video.play().catch(() => {
-        // `play()` rejeita quando o elemento é desmontado no meio da promessa; nada a fazer.
-      });
-    };
-    play();
-    // `loadedmetadata` cobre o primeiro quadro; `pause` e `emptied`, a parada que o elemento
-    // anuncia sozinho — essa volta sem depender de nenhum re-render.
-    const events: readonly string[] = ["loadedmetadata", "pause", "emptied"];
-    for (const event of events) video.addEventListener(event, play);
-    return () => {
-      for (const event of events) video.removeEventListener(event, play);
-    };
-  }, [stream]);
+  const slotRef = useCallback(
+    (node: HTMLDivElement | null) => {
+      if (!node || !surface) return;
+      if (surface.parentElement !== node) node.appendChild(surface);
+      // Reparentar não pausa (ver `videoSurfaces.ts`), mas um elemento que já estava pausado por
+      // outro motivo continuaria assim, e nada mais neste caminho o poria de volta no ar.
+      if (surface.paused) {
+        void surface.play().catch(() => {
+          // `play()` rejeita quando o elemento sai do documento no meio da promessa.
+        });
+      }
+    },
+    [surface],
+  );
 
   useEffect(
     () => () => {
@@ -96,7 +86,7 @@ export function VideoTile({ stream, label, variant = "stage", meta = null, onCli
   const frameClass = `video-frame ${VARIANT_CLASS[variant]}`;
   const content = (
     <>
-      <video ref={videoRef} autoPlay playsInline muted />
+      <div className="video-surface-slot" ref={slotRef} />
       <span className="video-frame-label">
         <span className="dot dot-live" />
         {label}

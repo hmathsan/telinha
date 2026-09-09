@@ -247,6 +247,15 @@ button.video-frame:hover {
   aspect-ratio: 16 / 9;
 }
 
+/*
+ * O `<video>` é anexado aqui pelo `VideoTile`, e não renderizado pelo React (`videoSurfaces.ts`).
+ * O slot não pode formar caixa própria: com `display: contents` o vídeo continua sendo filho de
+ * layout do quadro, e as regras abaixo valem sem mudar nada.
+ */
+.video-surface-slot {
+  display: contents;
+}
+
 .video-frame video {
   display: block;
   width: 100%;

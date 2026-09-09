@@ -26,7 +26,6 @@ export function App() {
           warnings={sessao.warnings}
           isTransmitting={sessao.isTransmitting}
           localStream={sessao.localStream}
-          mediaEpoch={sessao.mediaEpoch}
           onRespondEntry={sessao.respondEntry}
           onStartTransmitindo={sessao.startTransmitindo}
           onReleasePalco={sessao.releasePalco}
