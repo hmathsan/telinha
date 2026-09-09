@@ -22,6 +22,28 @@ describe("meshSignalPayloadSchema", () => {
     expect(result.success).toBe(true);
   });
 
+  it("accepts a recovery request in both modes", () => {
+    for (const mode of ["ice-restart", "recreate"]) {
+      const result = meshSignalPayloadSchema.safeParse({
+        kind: "recovery-request",
+        transmissorId: "t1",
+        espectadorId: "e1",
+        mode,
+      });
+      expect(result.success).toBe(true);
+    }
+  });
+
+  it("rejects a recovery request with an unknown mode", () => {
+    const result = meshSignalPayloadSchema.safeParse({
+      kind: "recovery-request",
+      transmissorId: "t1",
+      espectadorId: "e1",
+      mode: "reboot-everything",
+    });
+    expect(result.success).toBe(false);
+  });
+
   it("rejects an unknown kind", () => {
     const result = meshSignalPayloadSchema.safeParse({ kind: "bogus", transmissorId: "t1", espectadorId: "e1" });
     expect(result.success).toBe(false);

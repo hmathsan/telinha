@@ -104,13 +104,55 @@ defeito, durante o desenvolvimento e depois.
 
 ## Reconexão
 
-Três camadas com custos diferentes:
+Uma escada, em `shared/media/reconnectionPolicy.ts`, aplicada por conexão. Cada degrau custa mais
+que o anterior, e o relógio de cada perna zera quando ela volta a `connected`:
 
-- **`iceconnectionstate` vai a `disconnected`**: espere. Resolve sozinho na maioria das vezes.
-- **Vai a `failed`**: chame `pc.restartIce()` e renegocie pelo sinalizador. O cliente WebSocket
-  precisa da própria reconexão com backoff para isso funcionar.
-- **O app fechou**: reentrada completa com o Código de Sessão. Não construa recuperação de
-  sessão — o roster reconhecendo "quem voltou" custa mais do que colar seis caracteres.
+| Gatilho | Ação |
+| --- | --- |
+| `disconnected` há menos de `DISCONNECTED_GRACE_MS` (6 s) | esperar |
+| `disconnected` passado o período de graça, ou `failed` | `iceRestart`, até `MAX_RESTART_ATTEMPTS` (2) |
+| Tentativas esgotadas | refazer a `RTCPeerConnection` do zero |
+| `inboundBitrateBps === 0` por `STALLED_MEDIA_MS` (8 s) com o ICE em `connected` | entra na mesma escada |
+| O app fechou | reentrada completa com o Código de Sessão |
+
+`RECOVERY_COOLDOWN_MS` (10 s) é o piso entre duas ações na mesma perna, valendo também para as
+pedidas pelo par. A escalada é avaliada no mesmo poll de 2 s do diagnóstico: `disconnected` que
+precisa envelhecer não tem evento que o anuncie, e um timer por conexão seria um relógio a mais
+para manter.
+
+**A camada 3 continua sendo reentrada manual.** Não construa recuperação de sessão — o roster
+reconhecendo "quem voltou" custa mais do que colar seis caracteres.
+
+### Por que a escada, e não só `failed`
+
+A versão anterior desta seção mandava esperar em `disconnected` porque "resolve sozinho na maioria
+das vezes", e agir só em `failed`. O log da Sessão de 09/09/2026 refuta as duas metades: uma perna
+entrou em `disconnected` às 02:10:27, ficou lá com o vídeo congelado até a pessoa sair na mão às
+02:14:29, e **em nenhum momento do arquivo inteiro existe um `failed`**. A camada 2 nunca rodou uma
+vez sequer em produção. Esperar por `failed` é esperar por um evento que o Chromium não emite
+quando o caminho `srflx↔srflx` morre por remapeamento de NAT depois de dezenas de minutos.
+
+O degrau de refazer a `RTCPeerConnection` existe porque o deploy é STUN-only: sem relay para onde
+cair, re-gatherar candidatos `srflx` novos é o único recurso que resta.
+
+### O Espectador pede, o Transmissor oferta
+
+Cada sentido da malha é uma `RTCPeerConnection` própria, com detecção própria — o diagnóstico
+daquela mesma noite mostra as pernas de saída de um Transmissor em `connected` a 1,7 Mbps e a
+perna de entrada dele em `disconnected` no mesmo instante. Quem percebe a quebra costuma ser o
+Espectador, e só o Transmissor pode ofertar.
+
+Por isso o payload de `signal` tem um `kind: "recovery-request"` com `mode: "ice-restart" |
+"recreate"` — o único que anda no sentido contrário. É payload da malha, opaco para o sinalizador,
+então **não sobe `PROTOCOL_VERSION`**: um cliente antigo que o receba loga `mesh-signal-rejected` e
+não faz nada, que é exatamente o comportamento de hoje. Subir a versão trocaria "não recupera" por
+"não consegue entrar".
+
+No `recreate`, quem oferta derruba a `RTCPeerConnection` e refaz na hora. Quem assiste **não**
+fecha a sua: marca a perna e pede, e a troca acontece quando a oferta nova chega. Fechar antes
+deixaria a miniatura sumida para sempre se o Transmissor não respondesse — sem entrada no mapa não
+sobra ninguém para insistir no pedido, e um cliente antigo (que ignora `recovery-request`) é
+exatamente esse caso.
 
 ## Diagnóstico
 
@@ -121,12 +163,18 @@ histórico da conexão para o amigo mandar no Discord. Sem telemetria remota.
 Os campos que importam: bitrate de saída e entrada, `packetsLost`, `framesPerSecond`, o par de
 candidatos ICE vencedor, e principalmente **`encoderImplementation` e `qualityLimitationReason`**.
 
+Cada linha carrega também `msUnhealthy` e `restartAttempts` — há quanto tempo aquela perna está
+quebrada e quantos degraus da escada já subiu. Sem eles, responder isso durante uma ocorrência
+exigia cruzar o .json exportado com o `main.log` linha a linha, que foi exatamente o trabalho que
+o defeito de 09/09/2026 deu.
+
 ### Log local
 
 O diagnóstico exportado é um retrato do agora, e some com o app. Ao lado dele existe um log em
 arquivo (`electron-log`, em `userData/logs/main.log`, com rotação): quedas de WebSocket com código
-e motivo, transições de `iceconnectionstate`, falhas de SDP, erros não tratados dos dois processos
-e a queda do encoder para software. Continua valendo "sem telemetria remota" — o arquivo é local, e
+e motivo, transições de `iceconnectionstate`, cada degrau da escada de reconexão
+(`mesh-ice-recovery`, com o gatilho `ice`/`media`/`peer`), falhas de SDP, erros não tratados dos
+dois processos e a queda do encoder para software. Continua valendo "sem telemetria remota" — o arquivo é local, e
 quem o manda para alguém é a pessoa.
 
 Ele existe porque a primeira Sessão que terminou sozinha num teste com várias pessoas foi

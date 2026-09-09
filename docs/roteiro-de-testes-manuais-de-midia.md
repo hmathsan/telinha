@@ -139,13 +139,49 @@ provocar congestionamento.
 
 ## 4. Reconexão
 
+Estes passos **precisam de duas máquinas**. O defeito de 09/09/2026 (perna congelada em
+`disconnected` por quatro minutos) não reproduz com instâncias na mesma máquina: o loopback não
+tem NAT para remapear, e é o remapeamento que mata o caminho `srflx↔srflx`.
+
 **Espectador cai e volta.** Com uma Sessão em andamento, derrube a rede de um Espectador (Wi-Fi
-off, ou desconecte o cabo) por alguns segundos e restaure.
+off, ou desconecte o cabo) por ~15 segundos e restaure.
 
 - **O que observar:** a conexão se recupera sozinha sem que ninguém precise colar o Código de
-  Sessão de novo. Se `iceconnectionstate` foi só a `disconnected`, deve resolver sozinho; se foi
-  a `failed`, o app deve chamar `restartIce()` e renegociar — em ambos os casos, sem
-  intervenção manual.
+  Sessão de novo. No `main.log` do Espectador: `mesh-ice-state … disconnected, action: 'wait'`,
+  seguido em 6–8 s de `mesh-ice-recovery { action: 'restart-ice', trigger: 'ice' }`, e a volta a
+  `connected`. No log do Transmissor, o pedido chegando e a oferta saindo.
+- **Se falhar:** um `wait` sem nenhum `mesh-ice-recovery` atrás dele é o defeito de 09/09/2026
+  de volta — a escada parou de escalar.
+
+**Transporte quebrado com a sinalização de pé.** É a variante fiel ao defeito original, e a que o
+teste anterior não cobre: a queda de Wi-Fi derruba o WebSocket junto. Bloqueie só o UDP de saída
+da máquina do Espectador por ~30 segundos (regra de saída no firewall do Windows), deixando o
+WebSocket em TCP/443 intacto.
+
+- **O que observar:** ninguém sai da Sessão (o roster não muda, não aparece `signaling-close`), e
+  ainda assim a escada sobe: `restart-ice` primeiro e, se o bloqueio continuar, `action:
+  'recreate'` depois de duas tentativas, seguido de uma perna nova conectando quando o bloqueio
+  sai.
+
+**Mídia parada com o ICE conectado.** Suspenda o processo do Transmissor por ~15 segundos
+(Process Explorer, botão direito → Suspend) e retome.
+
+- **O que observar:** `mesh-ice-recovery { trigger: 'media' }` no log do Espectador. É a metade do
+  congelamento que o ICE não enxerga — o `iceConnectionState` fica em `connected` o tempo todo.
+
+**Sem falso positivo ao parar de transmitir.** Com A e B transmitindo, A para pelo botão do app,
+normalmente.
+
+- **O que observar:** nenhum `mesh-ice-recovery` no log de ninguém. A perna do Espectador tem que
+  fechar por `transmissores-changed`, não pelo watchdog. Se aparecer, o watchdog está recriando
+  conexões que iam morrer de qualquer jeito.
+
+**Sessão longa.** Deixe uma Sessão de duas máquinas transmitindo por ~40 minutos — a duração em
+que o defeito original apareceu. Ao final, exporte o diagnóstico.
+
+- **O que observar:** a coluna Recuperação. Tudo em `—` significa que nada quebrou; um número de
+  tentativas com a conexão em `connected` é a prova de que a escada trabalhou sem ninguém notar.
+  Uma perna com `msUnhealthy` crescendo e o vídeo congelado é o defeito ainda vivo.
 
 **Anfitrião sai.** Encerre a instância do Anfitrião (feche a janela).
 

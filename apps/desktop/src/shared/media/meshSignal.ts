@@ -39,6 +39,16 @@ export const meshSignalPayloadSchema = z.discriminatedUnion("kind", [
     espectadorId: z.string(),
     candidate: iceCandidateLikeSchema,
   }),
+  // O único payload que anda no sentido contrário. Cada sentido da malha é uma
+  // `RTCPeerConnection` própria, com detecção própria: quando o transporte morre, quem percebe
+  // costuma ser o Espectador, e só o Transmissor pode ofertar. Sem isto, o lado que enxerga o
+  // defeito não tem como pedir nada ao lado que consegue consertá-lo.
+  z.object({
+    kind: z.literal("recovery-request"),
+    transmissorId: z.string(),
+    espectadorId: z.string(),
+    mode: z.enum(["ice-restart", "recreate"]),
+  }),
 ]);
 
 export type MeshSignalPayload = z.infer<typeof meshSignalPayloadSchema>;

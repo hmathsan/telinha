@@ -11,6 +11,19 @@ function formatRtt(ms: number | null): string {
   return ms === null ? "—" : `${ms} ms`;
 }
 
+/**
+ * A coluna que o diagnóstico não tinha na noite em que uma perna ficou congelada por quatro
+ * minutos: quanto tempo ela está quebrada e quantas vezes a escada já tentou consertá-la. Sem
+ * ela, responder isso exigia cruzar o .json exportado com o `main.log` linha a linha.
+ */
+function formatRecuperacao(msUnhealthy: number, restartAttempts: number): string {
+  if (msUnhealthy === 0 && restartAttempts === 0) return "—";
+  const tentativas = restartAttempts > 0 ? `${restartAttempts}×` : "";
+  if (msUnhealthy === 0) return tentativas;
+  const quebradaHa = `${Math.round(msUnhealthy / 1000)} s`;
+  return tentativas ? `${quebradaHa} · ${tentativas}` : quebradaHa;
+}
+
 export interface DiagnosticsPanelProps {
   readonly diagnostics: readonly ConnectionDiagnostics[];
   readonly warnings: readonly QualityWarning[];
@@ -78,6 +91,7 @@ export function DiagnosticsPanel(props: DiagnosticsPanelProps) {
               <th>Encoder</th>
               <th>Limitação</th>
               <th>Conexão</th>
+              <th>Recuperação</th>
             </tr>
           </thead>
           <tbody>
@@ -94,6 +108,7 @@ export function DiagnosticsPanel(props: DiagnosticsPanelProps) {
                   <td>{d.encoderImplementation ?? "—"}</td>
                   <td>{d.qualityLimitationReason ?? "—"}</td>
                   <td>{d.relay.isRelay ? "servidor de retransmissão" : "direto"}</td>
+                  <td>{formatRecuperacao(d.msUnhealthy, d.restartAttempts)}</td>
                 </tr>
               );
             })}
