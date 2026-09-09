@@ -148,4 +148,55 @@ describe("sessaoReducer", () => {
     });
     expect(state.iceServers).toEqual([{ urls: "stun:stun.cloudflare.com:3478" }]);
   });
+
+  // O flood de pedidos que apareceu no primeiro teste com varias pessoas: sem estado de espera, a
+  // Entrada ficava identica depois do clique e cada clique novo virava um Participante a mais.
+  it("waits for approval after a join attempt, and stops waiting once the anfitriao answers", () => {
+    let state = sessaoReducer(initialClientSessaoState, {
+      source: "connect-attempt",
+      connectAction: { kind: "join", name: "Beto", codigoDeSessao: "ABC123" },
+    });
+    expect(state.awaitingApproval).toBe(true);
+
+    state = signaler(state, {
+      type: "entry-approved",
+      participanteId: "p2",
+      roster: [{ id: "p2", name: "Beto" }],
+      transmissores: [],
+    });
+    expect(state.awaitingApproval).toBe(false);
+  });
+
+  it("stops waiting when the entry is refused, so the buttons come back", () => {
+    let state = sessaoReducer(initialClientSessaoState, {
+      source: "connect-attempt",
+      connectAction: { kind: "join", name: "Beto", codigoDeSessao: "ABC123" },
+    });
+    state = signaler(state, { type: "entry-refused", reason: "refused-by-anfitriao" });
+
+    expect(state.awaitingApproval).toBe(false);
+    expect(state.entryError).toBe("refused-by-anfitriao");
+  });
+
+  it("never waits for approval when creating a Sessao: the anfitriao approves nobody but themselves", () => {
+    const state = sessaoReducer(initialClientSessaoState, {
+      source: "connect-attempt",
+      connectAction: { kind: "create", name: "Ana" },
+    });
+    expect(state.awaitingApproval).toBe(false);
+  });
+
+  it("drops a withdrawn request from the anfitriao's queue", () => {
+    let state = sessaoReducer(initialClientSessaoState, {
+      source: "connect-attempt",
+      connectAction: { kind: "create", name: "Ana" },
+    });
+    state = signaler(state, { type: "sessao-created", codigoDeSessao: "ABC123", participanteId: "p1" });
+    state = signaler(state, { type: "entry-request", participanteId: "p2", name: "Beto" });
+    state = signaler(state, { type: "entry-request", participanteId: "p3", name: "Caio" });
+
+    state = signaler(state, { type: "entry-request-withdrawn", participanteId: "p2" });
+
+    expect(state.pendingEntryRequests).toEqual([{ participanteId: "p3", name: "Caio" }]);
+  });
 });

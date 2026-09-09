@@ -13,6 +13,7 @@ function newSessao(anfitriaoName = "Ana") {
     participanteId: anfitriaoId,
     name: anfitriaoName,
     protocolVersion: PROTOCOL_VERSION,
+    joinNonce: randomUUID(),
     codigoDeSessao: "ABCDEF",
   });
   assert.ok(result.state, "sessao should have been created");
@@ -40,6 +41,7 @@ function joinAndApprove(
     codigoDeSessao: state.codigoDeSessao,
     name,
     protocolVersion: PROTOCOL_VERSION,
+    joinNonce: randomUUID(),
   });
   const approval = processMessage(request.state, anfitriaoId, {
     type: "respond-entry",
@@ -54,6 +56,7 @@ test("handshake: create-sessao with an incompatible version is refused", () => {
     participanteId: randomUUID(),
     name: "Ana",
     protocolVersion: PROTOCOL_VERSION + 1,
+    joinNonce: randomUUID(),
     codigoDeSessao: "ABCDEF",
   });
   assert.equal(result.state, null);
@@ -68,6 +71,7 @@ test("handshake: join with an incompatible version is refused", () => {
     codigoDeSessao: state.codigoDeSessao,
     name: "Bruno",
     protocolVersion: PROTOCOL_VERSION + 1,
+    joinNonce: randomUUID(),
   });
   const [message] = messagesOfType(result.effects, "entry-refused");
   assert.equal(message?.reason, "incompatible-version");
@@ -81,6 +85,7 @@ test("join with an invalid codigoDeSessao is refused", () => {
     codigoDeSessao: "ZZZZZZ",
     name: "Bruno",
     protocolVersion: PROTOCOL_VERSION,
+    joinNonce: randomUUID(),
   });
   const [message] = messagesOfType(result.effects, "entry-refused");
   assert.equal(message?.reason, "invalid-code");
@@ -94,6 +99,7 @@ test("join admits as pending-approval and notifies only the anfitriao", () => {
     codigoDeSessao: state.codigoDeSessao,
     name: "Bruno",
     protocolVersion: PROTOCOL_VERSION,
+    joinNonce: randomUUID(),
   });
   assert.equal(result.state.participantes.get(participanteId)?.state, "pending-approval");
   const [request] = messagesOfType(result.effects, "entry-request");
@@ -114,6 +120,7 @@ test("a participante pending approval can only send leave; anything else is disc
       codigoDeSessao: state.codigoDeSessao,
       name: "Pending",
       protocolVersion: PROTOCOL_VERSION,
+      joinNonce: randomUUID(),
     });
     return { state: r.state };
   })();
@@ -144,6 +151,7 @@ test("respond-entry approved admits and notifies the roster and everyone else", 
     codigoDeSessao: withBruno.codigoDeSessao,
     name: "Carlos",
     protocolVersion: PROTOCOL_VERSION,
+    joinNonce: randomUUID(),
   });
   const result = processMessage(request.state, anfitriaoId, {
     type: "respond-entry",
@@ -181,6 +189,7 @@ test("respond-entry refused removes the participante and notifies only them", ()
     codigoDeSessao: state.codigoDeSessao,
     name: "Bruno",
     protocolVersion: PROTOCOL_VERSION,
+    joinNonce: randomUUID(),
   });
   const result = processMessage(request.state, anfitriaoId, {
     type: "respond-entry",
@@ -206,6 +215,7 @@ test("respond-entry from someone who is not the anfitriao is discarded", () => {
     codigoDeSessao: withBruno.codigoDeSessao,
     name: "Carlos",
     protocolVersion: PROTOCOL_VERSION,
+    joinNonce: randomUUID(),
   });
 
   const result = processMessage(request.state, brunoId, {
@@ -330,6 +340,7 @@ test("full mesh: 7 participantes, 2 transmissores, 8th refused, 3rd palco reques
     codigoDeSessao: current.codigoDeSessao,
     name: "Eighth",
     protocolVersion: PROTOCOL_VERSION,
+    joinNonce: randomUUID(),
   });
   const [entryRefused] = messagesOfType(refusal.effects, "entry-refused");
   assert.equal(entryRefused?.reason, "sessao-full");
@@ -349,4 +360,167 @@ test("full mesh: 7 participantes, 2 transmissores, 8th refused, 3rd palco reques
   const [denied] = messagesOfType(thirdRequest.effects, "palco-denied");
   assert.equal(denied?.reason, "palco-full");
   assert.equal(thirdRequest.state.transmissores.length, MAX_TRANSMISSORES);
+});
+
+// ---------------------------------------------------------------------------
+// Pedido de entrada: retirada e chave de pedido (ADR 0010)
+// ---------------------------------------------------------------------------
+
+test("a pending participante leaving withdraws the request from the anfitriao's queue", () => {
+  const { state, anfitriaoId } = newSessao();
+  const bruno = randomUUID();
+  const joined = processMessage(state, bruno, {
+    type: "join",
+    codigoDeSessao: state.codigoDeSessao,
+    name: "Bruno",
+    protocolVersion: PROTOCOL_VERSION,
+    joinNonce: randomUUID(),
+  });
+
+  const left = processLeave(joined.state, bruno, "disconnected");
+
+  const [withdrawn] = messagesOfType(left.effects, "entry-request-withdrawn");
+  assert.equal(withdrawn?.participanteId, bruno);
+  assert.deepEqual(left.effects[0]?.toParticipanteIds, [anfitriaoId]);
+  assert.equal(left.state.participantes.has(bruno), false);
+});
+
+test("joining again with the same joinNonce replaces the pending request instead of adding one", () => {
+  const { state, anfitriaoId } = newSessao();
+  const joinNonce = randomUUID();
+  const first = randomUUID();
+  const second = randomUUID();
+
+  const one = processMessage(state, first, {
+    type: "join",
+    codigoDeSessao: state.codigoDeSessao,
+    name: "Bruno",
+    protocolVersion: PROTOCOL_VERSION,
+    joinNonce,
+  });
+  const two = processMessage(one.state, second, {
+    type: "join",
+    codigoDeSessao: state.codigoDeSessao,
+    name: "Bruno",
+    protocolVersion: PROTOCOL_VERSION,
+    joinNonce,
+  });
+
+  assert.equal(two.state.participantes.has(first), false);
+  assert.equal(two.state.participantes.get(second)?.state, "pending-approval");
+  assert.equal(two.state.participantes.size, 2, "anfitriao plus one pending, not two pending");
+
+  const [withdrawn] = messagesOfType(two.effects, "entry-request-withdrawn");
+  assert.equal(withdrawn?.participanteId, first);
+  const [request] = messagesOfType(two.effects, "entry-request");
+  assert.equal(request?.participanteId, second);
+  assert.deepEqual(
+    two.effects.map((e) => e.toParticipanteIds),
+    [[anfitriaoId], [anfitriaoId]],
+  );
+});
+
+test("an admitted ghost with the same joinNonce is replaced, and the roster does not duplicate", () => {
+  const { state, anfitriaoId } = newSessao();
+  const joinNonce = randomUUID();
+  const ghost = randomUUID();
+
+  const requested = processMessage(state, ghost, {
+    type: "join",
+    codigoDeSessao: state.codigoDeSessao,
+    name: "Bruno",
+    protocolVersion: PROTOCOL_VERSION,
+    joinNonce,
+  });
+  const approved = processMessage(requested.state, anfitriaoId, {
+    type: "respond-entry",
+    participanteId: ghost,
+    approved: true,
+  });
+
+  const fresh = randomUUID();
+  const rejoined = processMessage(approved.state, fresh, {
+    type: "join",
+    codigoDeSessao: state.codigoDeSessao,
+    name: "Bruno",
+    protocolVersion: PROTOCOL_VERSION,
+    joinNonce,
+  });
+
+  assert.equal(rejoined.state.participantes.has(ghost), false);
+  assert.equal(rejoined.state.participantes.size, 2, "anfitriao plus the fresh pending request");
+  const [left] = messagesOfType(rejoined.effects, "participante-left");
+  assert.equal(left?.participanteId, ghost);
+  assert.equal(left?.reason, "disconnected");
+});
+
+test("a ghost transmissor replaced by its own rejoin frees the palco slot", () => {
+  const { state, anfitriaoId } = newSessao();
+  const joinNonce = randomUUID();
+  const ghost = randomUUID();
+
+  const requested = processMessage(state, ghost, {
+    type: "join",
+    codigoDeSessao: state.codigoDeSessao,
+    name: "Bruno",
+    protocolVersion: PROTOCOL_VERSION,
+    joinNonce,
+  });
+  const approved = processMessage(requested.state, anfitriaoId, {
+    type: "respond-entry",
+    participanteId: ghost,
+    approved: true,
+  });
+  const transmitting = processMessage(approved.state, ghost, { type: "request-palco" });
+  assert.deepEqual(transmitting.state.transmissores, [ghost]);
+
+  const rejoined = processMessage(transmitting.state, randomUUID(), {
+    type: "join",
+    codigoDeSessao: state.codigoDeSessao,
+    name: "Bruno",
+    protocolVersion: PROTOCOL_VERSION,
+    joinNonce,
+  });
+
+  assert.deepEqual(rejoined.state.transmissores, []);
+  const [changed] = messagesOfType(rejoined.effects, "transmissores-changed");
+  assert.deepEqual(changed?.participanteIds, []);
+});
+
+test("a ghost does not steal the last slot from its own rejoin", () => {
+  let { state, anfitriaoId } = newSessao();
+  const joinNonce = randomUUID();
+  let ghost = "";
+
+  // Enche a Sessao ate o limite, com o ultimo admitido carregando o joinNonce que voltara.
+  for (let i = 0; i < MAX_PARTICIPANTES - 1; i += 1) {
+    const participanteId = randomUUID();
+    const requested = processMessage(state, participanteId, {
+      type: "join",
+      codigoDeSessao: state.codigoDeSessao,
+      name: `P${i}`,
+      protocolVersion: PROTOCOL_VERSION,
+      joinNonce: i === MAX_PARTICIPANTES - 2 ? joinNonce : randomUUID(),
+    });
+    const approved = processMessage(requested.state, anfitriaoId, {
+      type: "respond-entry",
+      participanteId,
+      approved: true,
+    });
+    state = approved.state;
+    if (i === MAX_PARTICIPANTES - 2) ghost = participanteId;
+  }
+  assert.equal(state.participantes.size, MAX_PARTICIPANTES);
+
+  const rejoined = processMessage(state, randomUUID(), {
+    type: "join",
+    codigoDeSessao: state.codigoDeSessao,
+    name: "Voltei",
+    protocolVersion: PROTOCOL_VERSION,
+    joinNonce,
+  });
+
+  assert.equal(messagesOfType(rejoined.effects, "entry-refused").length, 0, "the rejoin is not sessao-full");
+  assert.equal(messagesOfType(rejoined.effects, "entry-request").length, 1);
+  assert.equal(rejoined.state.participantes.has(ghost), false);
 });

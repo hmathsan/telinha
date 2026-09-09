@@ -124,9 +124,15 @@ find each other directly, and the connection needs a relay. Telinha uses one, bu
 quota. If that runs out, those networks stop connecting until the month turns over. Diagnostics
 shows whether your connection is going through that path.
 
+**The Sessão ended on its own, and nobody knows why.**
+Telinha keeps a local log of what happened. Open diagnostics and click **Abrir pasta de logs** — or
+go straight to `%APPDATA%\Telinha\logs`. The `main.log` file holds connection drops with
+their code and reason, ICE failures, and the errors the app could not put on screen. None of it
+leaves your machine: you are the one who sends the file to anybody.
+
 If none of this helped, [open an issue](https://github.com/hmathsan/scrn-broadcast/issues/new/choose)
-and **attach the exported diagnostics** — without it, almost any media problem turns into
-guesswork.
+and **attach the exported diagnostics and `main.log`** — without them, almost any problem turns
+into guesswork.
 
 ## Roadmap
 

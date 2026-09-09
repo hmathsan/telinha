@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from "react";
 import { MAX_TRANSMISSORES } from "@scrn-broadcast/protocol";
-import type { ClientSessaoState, EntryRequestEntry } from "../../shared/clientSessaoState.js";
+import type { ClientSessaoState } from "../../shared/clientSessaoState.js";
 import type { SignalingConnectionState } from "../../shared/ipc.js";
 import { isConnectionDegraded } from "../../shared/media/connectionQuality.js";
 import { selectPalcoClick, selectPalcoLayout, type ModoPalco } from "../../shared/palcoSelection.js";
@@ -8,6 +8,7 @@ import type { ConnectionDiagnostics } from "./media/meshManager.js";
 import type { QualityWarning } from "./useSessao.js";
 import { DiagnosticsPanel } from "./DiagnosticsPanel.js";
 import { Palco } from "./Palco.js";
+import { PedidosDeEntrada } from "./PedidosDeEntrada.js";
 import { ParticipantesDrawer } from "./ParticipantesDrawer.js";
 import { QualityIndicator } from "./QualityIndicator.js";
 import { TopBar } from "./TopBar.js";
@@ -21,6 +22,8 @@ export interface SessaoScreenProps {
   readonly warnings: readonly QualityWarning[];
   readonly isTransmitting: boolean;
   readonly localStream: MediaStream | null;
+  /** Ver `useSessao`: muda quando a captura local é desmontada, e recria as Fontes do Palco. */
+  readonly mediaEpoch: number;
   readonly onRespondEntry: (participanteId: string, approved: boolean) => void;
   readonly onStartTransmitindo: () => void;
   readonly onReleasePalco: () => void;
@@ -169,36 +172,14 @@ export function SessaoScreen(props: SessaoScreenProps) {
 
       <div className="flex min-h-0 flex-1">
         <main className="flex min-w-0 flex-1 flex-col gap-3 p-4">
-          {/*
-           * Faixa empilhável, não modal: dois pedidos simultâneos viram dois modais um sobre o
-           * outro, e aí a pessoa aprova quem não queria (spec 0008, "Aprovação de entrada").
-           */}
-          {state.isAnfitriao &&
-            state.pendingEntryRequests.map((request: EntryRequestEntry) => (
-              <div key={request.participanteId} className="card card-accent flex flex-none items-center justify-between gap-3">
-                <span>{request.name} pediu para entrar.</span>
-                <span className="flex gap-2">
-                  <button
-                    type="button"
-                    className="btn btn-primary btn-sm"
-                    onClick={() => props.onRespondEntry(request.participanteId, true)}
-                  >
-                    Aprovar
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-ghost btn-sm"
-                    onClick={() => props.onRespondEntry(request.participanteId, false)}
-                  >
-                    Recusar
-                  </button>
-                </span>
-              </div>
-            ))}
+          {state.isAnfitriao && (
+            <PedidosDeEntrada pedidos={state.pendingEntryRequests} onRespond={props.onRespondEntry} />
+          )}
 
           <Palco
             layout={layout}
             streamsById={streamsById}
+            mediaEpoch={props.mediaEpoch}
             nameOf={nameOf}
             stageMeta={stageMeta}
             palcoRef={palcoRef}

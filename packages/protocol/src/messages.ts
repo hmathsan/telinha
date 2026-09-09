@@ -38,10 +38,20 @@ const participanteSchema = z.object({
 // App -> Signaler
 // ---------------------------------------------------------------------------
 
+/**
+ * Chave do pedido de entrada: um UUID sorteado uma vez por processo do app, reenviado em toda
+ * tentativa. Não é identidade — não persiste, não autentica e some quando o app fecha (ver
+ * [ADR 0010](../../../docs/adr/0010-chave-de-pedido-de-entrada.md)). Serve para o sinalizador
+ * reconhecer que o pedido que está chegando vem do mesmo app que o pedido anterior, e substituir
+ * um pelo outro em vez de somar dois Participantes com o mesmo humano atrás.
+ */
+const joinNonceSchema = z.string().uuid();
+
 const createSessaoSchema = z.object({
   type: z.literal("create-sessao"),
   name: z.string().min(1),
   protocolVersion: z.number().int(),
+  joinNonce: joinNonceSchema,
 });
 
 const joinSchema = z.object({
@@ -49,6 +59,7 @@ const joinSchema = z.object({
   codigoDeSessao: z.string().length(6),
   name: z.string().min(1),
   protocolVersion: z.number().int(),
+  joinNonce: joinNonceSchema,
 });
 
 const respondEntrySchema = z.object({
@@ -118,6 +129,14 @@ const entryRequestSchema = z.object({
   name: z.string().min(1),
 });
 
+// Sem ela, o pedido de quem desistiu (ou caiu) fica pendurado na fila do Anfitrião para sempre, e
+// aprová-lo não faz nada, em silêncio, porque o Participante já não existe no estado. Entrou na
+// tabela da spec 0001 junto com a regra do `joinNonce`.
+const entryRequestWithdrawnSchema = z.object({
+  type: z.literal("entry-request-withdrawn"),
+  participanteId: participanteIdSchema,
+});
+
 const entryApprovedSchema = z.object({
   type: z.literal("entry-approved"),
   participanteId: participanteIdSchema,
@@ -174,6 +193,7 @@ const iceServersSchema = z.object({
 export const signalerToAppMessageSchema = z.discriminatedUnion("type", [
   sessaoCreatedSchema,
   entryRequestSchema,
+  entryRequestWithdrawnSchema,
   entryApprovedSchema,
   entryRefusedSchema,
   participanteJoinedSchema,
@@ -189,6 +209,7 @@ export type SignalerToAppMessage = z.infer<typeof signalerToAppMessageSchema>;
 
 export type SessaoCreated = z.infer<typeof sessaoCreatedSchema>;
 export type EntryRequest = z.infer<typeof entryRequestSchema>;
+export type EntryRequestWithdrawn = z.infer<typeof entryRequestWithdrawnSchema>;
 export type EntryApproved = z.infer<typeof entryApprovedSchema>;
 export type EntryRefused = z.infer<typeof entryRefusedSchema>;
 export type ParticipanteJoined = z.infer<typeof participanteJoinedSchema>;

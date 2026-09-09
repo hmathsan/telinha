@@ -38,6 +38,10 @@ export function DiagnosticsPanel(props: DiagnosticsPanelProps) {
             <IconDownload />
             Exportar .json
           </button>
+          {/* O arquivo de log fica fora da Sessão: é o que sobrevive ao app fechar sozinho. */}
+          <button type="button" className="btn btn-ghost btn-sm" onClick={() => window.scrnBroadcast.openLogsFolder()}>
+            Abrir pasta de logs
+          </button>
           <button type="button" className="btn btn-ghost btn-icon btn-sm" onClick={props.onClose} title="Fechar">
             <IconX label="Fechar diagnóstico" />
           </button>

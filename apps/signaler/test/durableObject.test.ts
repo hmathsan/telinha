@@ -4,7 +4,7 @@ import { connect, nextMessage, send } from "./helpers.js";
 
 async function createSessao(name = "Ana") {
   const host = await connect("/sessao/create");
-  send(host, { type: "create-sessao", name, protocolVersion: PROTOCOL_VERSION });
+  send(host, { type: "create-sessao", name, protocolVersion: PROTOCOL_VERSION, joinNonce: crypto.randomUUID() });
   const created = await nextMessage(host);
   if (created.type !== "sessao-created") throw new Error(`expected sessao-created, got ${created.type}`);
   await nextMessage(host); // ice-servers
@@ -13,7 +13,7 @@ async function createSessao(name = "Ana") {
 
 async function joinAndApprove(codigoDeSessao: string, host: WebSocket, name: string) {
   const joiner = await connect(`/sessao/join?codigoDeSessao=${codigoDeSessao}`);
-  send(joiner, { type: "join", codigoDeSessao, name, protocolVersion: PROTOCOL_VERSION });
+  send(joiner, { type: "join", codigoDeSessao, name, protocolVersion: PROTOCOL_VERSION, joinNonce: crypto.randomUUID() });
   const entryRequest = await nextMessage(host);
   if (entryRequest.type !== "entry-request") throw new Error(`expected entry-request, got ${entryRequest.type}`);
   send(host, { type: "respond-entry", participanteId: entryRequest.participanteId, approved: true });
@@ -38,7 +38,7 @@ test("um cliente WebSocket consegue criar e entrar numa Sessao", async () => {
 
 test("sem TURN configurado, o sinalizador emite só STUN ao admitir", async () => {
   const host = await connect("/sessao/create");
-  send(host, { type: "create-sessao", name: "Ana", protocolVersion: PROTOCOL_VERSION });
+  send(host, { type: "create-sessao", name: "Ana", protocolVersion: PROTOCOL_VERSION, joinNonce: crypto.randomUUID() });
   await nextMessage(host); // sessao-created
   const iceServers = await nextMessage(host);
   expect(iceServers).toEqual({
@@ -49,7 +49,7 @@ test("sem TURN configurado, o sinalizador emite só STUN ao admitir", async () =
 
 test("join com codigoDeSessao inexistente e recusado com invalid-code", async () => {
   const joiner = await connect("/sessao/join?codigoDeSessao=ZZZZZZ");
-  send(joiner, { type: "join", codigoDeSessao: "ZZZZZZ", name: "Bruno", protocolVersion: PROTOCOL_VERSION });
+  send(joiner, { type: "join", codigoDeSessao: "ZZZZZZ", name: "Bruno", protocolVersion: PROTOCOL_VERSION, joinNonce: crypto.randomUUID() });
   const refused = await nextMessage(joiner);
   expect(refused).toEqual({ type: "entry-refused", reason: "invalid-code" });
 });
@@ -57,7 +57,7 @@ test("join com codigoDeSessao inexistente e recusado com invalid-code", async ()
 test("join recusado pelo anfitriao gera entry-refused", async () => {
   const { host, codigoDeSessao } = await createSessao("Ana");
   const joiner = await connect(`/sessao/join?codigoDeSessao=${codigoDeSessao}`);
-  send(joiner, { type: "join", codigoDeSessao, name: "Bruno", protocolVersion: PROTOCOL_VERSION });
+  send(joiner, { type: "join", codigoDeSessao, name: "Bruno", protocolVersion: PROTOCOL_VERSION, joinNonce: crypto.randomUUID() });
   const entryRequest = await nextMessage(host);
   if (entryRequest.type !== "entry-request") throw new Error("expected entry-request");
 
@@ -85,7 +85,7 @@ test("o oitavo participante e recusado com sessao-full", async () => {
   }
 
   const eighth = await connect(`/sessao/join?codigoDeSessao=${codigoDeSessao}`);
-  send(eighth, { type: "join", codigoDeSessao, name: "Eighth", protocolVersion: PROTOCOL_VERSION });
+  send(eighth, { type: "join", codigoDeSessao, name: "Eighth", protocolVersion: PROTOCOL_VERSION, joinNonce: crypto.randomUUID() });
   const refused = await nextMessage(eighth);
   expect(refused).toEqual({ type: "entry-refused", reason: "sessao-full" });
 });
@@ -98,6 +98,7 @@ test("join com versao incompativel e recusado com incompatible-version", async (
     codigoDeSessao,
     name: "Bruno",
     protocolVersion: PROTOCOL_VERSION + 1,
+    joinNonce: crypto.randomUUID(),
   });
   const refused = await nextMessage(joiner);
   expect(refused).toEqual({ type: "entry-refused", reason: "incompatible-version" });
@@ -160,3 +161,48 @@ test("um participante desconectando libera a vaga de Palco e notifica os demais"
   const palcoFreed = await nextMessage(host);
   expect(palcoFreed).toEqual({ type: "transmissores-changed", participanteIds: [] });
 });
+
+// O caminho exato do primeiro teste com varias pessoas: a mesma pessoa pedindo entrada duas vezes.
+// O `joinNonce` so sobrevive porque entra no attachment da conexao — o estado inteiro do Durable
+// Object e reconstruido dai a cada mensagem, e sem ele o segundo pedido viraria um Participante
+// novo em vez de substituir o anterior.
+test("dois pedidos com o mesmo joinNonce viram um so Participante", async () => {
+  const { host, codigoDeSessao } = await createSessao("Ana");
+  const joinNonce = crypto.randomUUID();
+
+  const primeiro = await connect(`/sessao/join?codigoDeSessao=${codigoDeSessao}`);
+  send(primeiro, { type: "join", codigoDeSessao, name: "Bruno", protocolVersion: PROTOCOL_VERSION, joinNonce });
+  const pedidoUm = await nextMessage(host);
+  if (pedidoUm.type !== "entry-request") throw new Error(`expected entry-request, got ${pedidoUm.type}`);
+
+  const segundo = await connect(`/sessao/join?codigoDeSessao=${codigoDeSessao}`);
+  send(segundo, { type: "join", codigoDeSessao, name: "Bruno", protocolVersion: PROTOCOL_VERSION, joinNonce });
+
+  const retirada = await nextMessage(host);
+  expect(retirada).toEqual({ type: "entry-request-withdrawn", participanteId: pedidoUm.participanteId });
+  const pedidoDois = await nextMessage(host);
+  if (pedidoDois.type !== "entry-request") throw new Error(`expected entry-request, got ${pedidoDois.type}`);
+  expect(pedidoDois.participanteId).not.toBe(pedidoUm.participanteId);
+
+  // Aprovar o pedido vivo admite uma pessoa so: o roster nao carrega o fantasma.
+  send(host, { type: "respond-entry", participanteId: pedidoDois.participanteId, approved: true });
+  const aprovado = await nextMessage(segundo);
+  if (aprovado.type !== "entry-approved") throw new Error(`expected entry-approved, got ${aprovado.type}`);
+  expect(aprovado.roster.map((p) => p.name).sort()).toEqual(["Ana", "Bruno"]);
+});
+
+test("um pendente que desiste some da fila do Anfitriao", async () => {
+  const { host, codigoDeSessao } = await createSessao("Ana");
+  const joiner = await connect(`/sessao/join?codigoDeSessao=${codigoDeSessao}`);
+  send(joiner, { type: "join", codigoDeSessao, name: "Bruno", protocolVersion: PROTOCOL_VERSION, joinNonce: crypto.randomUUID() });
+  const pedido = await nextMessage(host);
+  if (pedido.type !== "entry-request") throw new Error(`expected entry-request, got ${pedido.type}`);
+
+  send(joiner, { type: "leave" });
+
+  expect(await nextMessage(host)).toEqual({
+    type: "entry-request-withdrawn",
+    participanteId: pedido.participanteId,
+  });
+});
+

@@ -8,7 +8,11 @@ import { openFontePicker } from "./sourcePicker.js";
 import { SignalingClient } from "./signalingClient.js";
 import { exportDiagnostics } from "./diagnosticsExport.js";
 import { startAutoUpdater } from "./autoUpdater.js";
-import { IPC_CHANNELS, type ConnectAction, type DiagnosticsExportRequest } from "../shared/ipc.js";
+import { initLogging, log, logFromRenderer, openLogsFolder, watchWindow } from "./log.js";
+import { IPC_CHANNELS, type ConnectAction, type DiagnosticsExportRequest, type LogEntry } from "../shared/ipc.js";
+
+// Primeiro de tudo: qualquer coisa que quebre daqui para baixo precisa cair no arquivo.
+initLogging();
 
 // Precisa rodar antes de app.whenReady() (spec 0003, "A captura de janela precisa de WGC").
 enableWindowsGraphicsCapture();
@@ -31,7 +35,10 @@ function registerDisplayMediaHandler(): void {
         .then((source) => {
           callback(source ? { video: source } : {});
         })
-        .catch(() => callback({}));
+        .catch((error: unknown) => {
+          log.error("fonte-picker-failed", error);
+          callback({});
+        });
     },
     { useSystemPicker: false },
   );
@@ -60,9 +67,18 @@ function registerSessaoIpc(): void {
 
 function registerDiagnosticsIpc(): void {
   ipcMain.handle(IPC_CHANNELS.diagnosticsExport, async (_event, request: DiagnosticsExportRequest) => {
-    if (!mainWindow) return { savedPath: null };
+    if (!mainWindow) return { savedPath: null, error: null };
     return exportDiagnostics(mainWindow, request);
   });
+}
+
+function registerLogIpc(): void {
+  ipcMain.on(IPC_CHANNELS.logsOpenFolder, () => {
+    void openLogsFolder().then((error) => {
+      if (error) log.error("open-logs-folder-failed", error);
+    });
+  });
+  ipcMain.on(IPC_CHANNELS.logWrite, (_event, entry: LogEntry) => logFromRenderer(entry));
 }
 
 function registerSignalerUrlIpc(): void {
@@ -83,14 +99,17 @@ app.whenReady().then(() => {
   registerDiagnosticsIpc();
   registerSignalerUrlIpc();
   registerClipboardIpc();
+  registerLogIpc();
   startAutoUpdater();
   mainWindow = createMainWindow();
   applyDevToolsPolicy(mainWindow);
+  watchWindow(mainWindow);
 
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       mainWindow = createMainWindow();
       applyDevToolsPolicy(mainWindow);
+      watchWindow(mainWindow);
     }
   });
 });

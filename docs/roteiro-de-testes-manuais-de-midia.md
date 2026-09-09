@@ -101,6 +101,21 @@ primeiro ocupa o Palco e o segundo aparece como miniatura. Clique na miniatura.
 - **O que observar:** a miniatura assume o Palco e o que estava no Palco vira miniatura. Duplo
   clique no Palco deve entrar em tela cheia.
 
+**Parar de transmitir com outro Transmissor no ar.** É o caso que já escapou duas vezes, e escapa
+porque exige olhar a tela de quem *parou*, não a de quem assiste. Com A e B transmitindo, faça as
+duas variantes na tela de **A**, e depois repita as duas em Grade:
+
+1. A clica na Fonte de B para promovê-la ao Palco (A vira miniatura) e então para de transmitir.
+2. A deixa a própria Fonte no Palco, com B como miniatura, e então para de transmitir.
+
+- **O que observar:** a Fonte de B continua com imagem em movimento na tela de A, nas quatro
+  combinações. Um quadro preto ou congelado aqui é o defeito — e ele não aparece para quem só
+  assiste, porque o gatilho é o desmonte da captura local de quem parou. Repita a variante 1 uma
+  vez com A parando pela barra nativa do Chromium em vez do botão do app.
+- **Se falhar:** o `main.log` de A traz `local-transmission-stopped`. Ele aparecendo significa que
+  as Fontes foram recriadas e a causa é outra; ele faltando significa que a parada nem chegou a
+  esse caminho.
+
 **Terceiro pedido de transmissão.** Com as duas vagas de Transmissor ocupadas, tente transmitir
 de uma terceira instância admitida.
 

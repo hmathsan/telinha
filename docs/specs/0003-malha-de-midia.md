@@ -121,6 +121,24 @@ histórico da conexão para o amigo mandar no Discord. Sem telemetria remota.
 Os campos que importam: bitrate de saída e entrada, `packetsLost`, `framesPerSecond`, o par de
 candidatos ICE vencedor, e principalmente **`encoderImplementation` e `qualityLimitationReason`**.
 
+### Log local
+
+O diagnóstico exportado é um retrato do agora, e some com o app. Ao lado dele existe um log em
+arquivo (`electron-log`, em `userData/logs/main.log`, com rotação): quedas de WebSocket com código
+e motivo, transições de `iceconnectionstate`, falhas de SDP, erros não tratados dos dois processos
+e a queda do encoder para software. Continua valendo "sem telemetria remota" — o arquivo é local, e
+quem o manda para alguém é a pessoa.
+
+Ele existe porque a primeira Sessão que terminou sozinha num teste com várias pessoas foi
+impossível de diagnosticar: o app engolia o erro do WebSocket, o do SDP e o do encoder sem escrever
+nada em lugar nenhum.
+
+**Pendência conhecida.** O Anfitrião não reconecta: qualquer queda no caminho `create` encerra a
+Sessão para todos (`signalingClient.ts`, e o comentário lá explica por quê — reconectar trocaria o
+Código de Sessão de todo mundo sem aviso). É a explicação mais provável para uma Sessão que termina
+sozinha. A decisão de mudar isso espera o log do próximo teste, porque preservar identidade através
+da queda exige que o Durable Object conheça mais do que os sockets vivos.
+
 Esses dois últimos não são opcionais. Quando o teto de sessões do encoder de hardware estoura —
 num amigo de driver antigo, ou porque ele deixou o OBS aberto — o Chromium cai para OpenH264 por
 software **sem lançar erro e sem emitir evento**. `encoderImplementation` mudando para `OpenH264`

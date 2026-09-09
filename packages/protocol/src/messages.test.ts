@@ -4,11 +4,12 @@ import { appToSignalerMessageSchema, signalerToAppMessageSchema } from "./messag
 
 const idA = "11111111-1111-4111-8111-111111111111";
 const idB = "22222222-2222-4222-8222-222222222222";
+const nonce = "33333333-3333-4333-8333-333333333333";
 
 test("every App -> Signaler message from the spec has a valid schema", () => {
   const examples = [
-    { type: "create-sessao", name: "Ana", protocolVersion: 1 },
-    { type: "join", codigoDeSessao: "ABCDEF", name: "Bruno", protocolVersion: 1 },
+    { type: "create-sessao", name: "Ana", protocolVersion: 1, joinNonce: nonce },
+    { type: "join", codigoDeSessao: "ABCDEF", name: "Bruno", protocolVersion: 1, joinNonce: nonce },
     { type: "respond-entry", participanteId: idA, approved: true },
     { type: "expel", participanteId: idA },
     { type: "request-palco" },
@@ -25,6 +26,7 @@ test("every Signaler -> App message from the spec has a valid schema", () => {
   const examples = [
     { type: "sessao-created", codigoDeSessao: "ABCDEF", participanteId: idA },
     { type: "entry-request", participanteId: idA, name: "Bruno" },
+    { type: "entry-request-withdrawn", participanteId: idA },
     {
       type: "entry-approved",
       participanteId: idA,
@@ -69,6 +71,7 @@ test("rejects a codigoDeSessao with the wrong length", () => {
       codigoDeSessao: "ABC",
       name: "Bruno",
       protocolVersion: 1,
+      joinNonce: nonce,
     }),
   );
 });

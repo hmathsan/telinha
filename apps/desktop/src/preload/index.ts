@@ -6,6 +6,7 @@ import {
   type DiagnosticsExportRequest,
   type DiagnosticsExportResult,
   type FontePickerItem,
+  type LogEntry,
   type PickerApi,
   type ScrnBroadcastApi,
   type SignalingConnectionState,
@@ -33,6 +34,8 @@ const scrnBroadcast: ScrnBroadcastApi = {
   },
   exportDiagnostics: (request: DiagnosticsExportRequest) =>
     ipcRenderer.invoke(IPC_CHANNELS.diagnosticsExport, request) as Promise<DiagnosticsExportResult>,
+  openLogsFolder: () => ipcRenderer.send(IPC_CHANNELS.logsOpenFolder),
+  log: (entry: LogEntry) => ipcRenderer.send(IPC_CHANNELS.logWrite, entry),
 };
 
 const picker: PickerApi = {

@@ -213,6 +213,41 @@
   color: var(--color-text-muted);
 }
 
+/* ── Pilha de pedidos de entrada ────────────────────────────────────────── */
+
+/*
+ * Um card na frente e os seguintes desenhados atrás, em leque. Só o da frente ocupa espaço no
+ * fluxo: a pilha inteira tem a altura de um card, então dez pedidos não empurram o Palco para
+ * fora da tela como dez faixas empilhadas empurravam.
+ */
+.pedido-pilha {
+  position: relative;
+}
+
+.pedido-pilha-frente {
+  position: relative;
+  z-index: 3;
+  box-shadow: var(--shadow-md);
+}
+
+.pedido-pilha-fundo {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.pedido-pilha-fundo-1 {
+  z-index: 2;
+  transform: translateY(6px) scale(0.97);
+  opacity: 0.7;
+}
+
+.pedido-pilha-fundo-2 {
+  z-index: 1;
+  transform: translateY(12px) scale(0.94);
+  opacity: 0.45;
+}
+
 /* ── Tabela ─────────────────────────────────────────────────────────────── */
 
 .table {

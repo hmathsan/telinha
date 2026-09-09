@@ -1,5 +1,6 @@
 import { writeFile } from "node:fs/promises";
 import { type BrowserWindow, dialog } from "electron";
+import { log } from "./log.js";
 import type { DiagnosticsExportRequest, DiagnosticsExportResult } from "../shared/ipc.js";
 
 /**
@@ -16,8 +17,16 @@ export async function exportDiagnostics(
     filters: [{ name: "JSON", extensions: ["json"] }],
   });
   if (canceled || !filePath) {
-    return { savedPath: null };
+    return { savedPath: null, error: null };
   }
-  await writeFile(filePath, request.content, "utf-8");
-  return { savedPath: filePath };
+  // Sem este try, uma falha de gravação (disco cheio, pasta protegida) virava uma rejection
+  // flutuante: o botão simplesmente não fazia nada, e ninguém ficava sabendo por quê.
+  try {
+    await writeFile(filePath, request.content, "utf-8");
+  } catch (error) {
+    log.error("diagnostics-export-failed", error);
+    return { savedPath: null, error: error instanceof Error ? error.message : String(error) };
+  }
+  log.info("diagnostics-exported", { filePath });
+  return { savedPath: filePath, error: null };
 }

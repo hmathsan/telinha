@@ -8,6 +8,7 @@ import {
   type SessionDescriptionLike,
 } from "../../../shared/media/meshSignal.js";
 import { decideIceRecoveryAction, type IceConnectionState } from "../../../shared/media/reconnectionPolicy.js";
+import { logToMain } from "../log.js";
 
 const DIAGNOSTICS_INTERVAL_MS = 2000;
 
@@ -107,10 +108,17 @@ export class MeshManager {
     }
   }
 
-  handleSignal(_fromParticipanteId: string, rawPayload: unknown): void {
+  handleSignal(fromParticipanteId: string, rawPayload: unknown): void {
     const parsed = meshSignalPayloadSchema.safeParse(rawPayload);
-    if (!parsed.success) return;
-    void this.applySignal(parsed.data);
+    if (!parsed.success) {
+      logToMain("warn", "mesh-signal-rejected", { fromParticipanteId, issues: parsed.error.issues });
+      return;
+    }
+    // Uma falha aqui (SDP incompatível, glare) matava a conexão sem deixar rastro: nada acontecia
+    // na tela, e o log não existia para contar o contrário.
+    void this.applySignal(parsed.data).catch((error: unknown) => {
+      logToMain("error", "mesh-signal-failed", { fromParticipanteId, kind: parsed.data.kind, message: String(error) });
+    });
   }
 
   /** Fecha tudo — saída da Sessão ou app fechando. */
@@ -193,7 +201,9 @@ export class MeshManager {
       });
     }
 
-    void this.negotiate(entry);
+    void this.negotiate(entry).catch((error: unknown) => {
+      logToMain("error", "mesh-negotiate-failed", { key, message: String(error) });
+    });
   }
 
   private async negotiate(entry: ManagedConnection, options?: RTCOfferOptions): Promise<void> {
@@ -243,10 +253,19 @@ export class MeshManager {
     };
 
     pc.oniceconnectionstatechange = () => {
-      const action = decideIceRecoveryAction(pc.iceConnectionState as IceConnectionState);
+      const iceConnectionState = pc.iceConnectionState;
+      const action = decideIceRecoveryAction(iceConnectionState as IceConnectionState);
+      logToMain(iceConnectionState === "failed" ? "warn" : "info", "mesh-ice-state", {
+        key: connectionKey(transmissorId, espectadorId),
+        role,
+        iceConnectionState,
+        action,
+      });
       // Camada 2 (spec 0003, "Reconexão"): só quem ofereceu originalmente renegocia.
       if (action === "restart-ice" && role === "transmissor") {
-        void this.negotiate(entry, { iceRestart: true });
+        void this.negotiate(entry, { iceRestart: true }).catch((error: unknown) => {
+          logToMain("error", "mesh-ice-restart-failed", { role, message: String(error) });
+        });
       }
     };
 

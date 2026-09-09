@@ -30,8 +30,33 @@ export function VideoTile({ stream, label, variant = "stage", meta = null, onCli
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const pendingClickRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  /**
+   * Um `<video>` de MediaStream não retoma sozinho depois de ser interrompido: fica no último
+   * quadro, ou preto. É o que acontece com quem continua transmitindo quando outra pessoa para —
+   * `stopTransmitting` fecha as peer connections de saída e chama `track.stop()` na captura no
+   * mesmo instante, e o elemento trava. Quem força elemento novo é a `mediaEpoch` na `key`
+   * (`Palco.tsx`), porque quando quem parou era a miniatura nada no layout deste elemento muda.
+   * O que fica aqui é o resto: garantir que um elemento novo comece a tocar, e devolver ao ar um
+   * que se interrompa por conta própria.
+   */
   useEffect(() => {
-    if (videoRef.current) videoRef.current.srcObject = stream;
+    const video = videoRef.current;
+    if (!video) return;
+    if (video.srcObject !== stream) video.srcObject = stream;
+
+    const play = (): void => {
+      void video.play().catch(() => {
+        // `play()` rejeita quando o elemento é desmontado no meio da promessa; nada a fazer.
+      });
+    };
+    play();
+    // `loadedmetadata` cobre o primeiro quadro; `pause` e `emptied`, a parada que o elemento
+    // anuncia sozinho — essa volta sem depender de nenhum re-render.
+    const events: readonly string[] = ["loadedmetadata", "pause", "emptied"];
+    for (const event of events) video.addEventListener(event, play);
+    return () => {
+      for (const event of events) video.removeEventListener(event, play);
+    };
   }, [stream]);
 
   useEffect(

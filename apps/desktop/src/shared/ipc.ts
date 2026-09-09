@@ -12,6 +12,8 @@ export const IPC_CHANNELS = {
   sessaoMessage: "sessao:message",
   sessaoConnectionState: "sessao:connection-state",
   diagnosticsExport: "diagnostics:export",
+  logsOpenFolder: "logs:open-folder",
+  logWrite: "log:write",
   signalerUrl: "app:signaler-url",
   clipboardWrite: "app:clipboard-write",
   pickerOpen: "picker:open",
@@ -57,6 +59,18 @@ export interface DiagnosticsExportRequest {
 
 export interface DiagnosticsExportResult {
   readonly savedPath: string | null;
+  /** Mensagem de falha ao gravar. Sem isto o botão parecia não fazer nada quando o disco recusava. */
+  readonly error: string | null;
+}
+
+/**
+ * Uma linha de log vinda do renderer. O arquivo é único e vive no processo principal (`main/log.ts`)
+ * — o renderer não escreve em disco, manda por IPC como manda todo o resto.
+ */
+export interface LogEntry {
+  readonly level: "info" | "warn" | "error";
+  readonly message: string;
+  readonly data?: unknown;
 }
 
 export interface ScrnBroadcastApi {
@@ -72,4 +86,6 @@ export interface ScrnBroadcastApi {
   onMessage(callback: (message: SignalerToAppMessage) => void): () => void;
   onConnectionState(callback: (state: SignalingConnectionState) => void): () => void;
   exportDiagnostics(request: DiagnosticsExportRequest): Promise<DiagnosticsExportResult>;
+  openLogsFolder(): void;
+  log(entry: LogEntry): void;
 }

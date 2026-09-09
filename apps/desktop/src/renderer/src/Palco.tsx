@@ -6,6 +6,12 @@ import { VideoTile } from "./VideoTile.js";
 export interface PalcoProps {
   readonly layout: PalcoLayout;
   readonly streamsById: ReadonlyMap<string, MediaStream>;
+  /**
+   * Muda quando a captura local é desmontada (`useSessao`). Entra na `key` de toda Fonte porque
+   * parar de transmitir trava o `<video>` de quem continua, e só um elemento novo desengasga —
+   * é a mesma cura de alternar Foco/Grade, que deixa de existir com um Transmissor só.
+   */
+  readonly mediaEpoch: number;
   readonly nameOf: (id: string) => string;
   /** Resolução e taxa do Palco, no canto oposto ao nome. */
   readonly stageMeta: string | null;
@@ -25,6 +31,9 @@ export interface PalcoProps {
 export function Palco(props: PalcoProps) {
   const { layout } = props;
 
+  /** A identidade do elemento de mídia: o Transmissor, mais a época que força o remonte. */
+  const tileKey = (id: string): string => `${props.mediaEpoch}:${id}`;
+
   if (layout.vazio) {
     return (
       <div className="card card-quiet flex flex-1 flex-col items-center justify-center gap-3 text-center">
@@ -42,7 +51,7 @@ export function Palco(props: PalcoProps) {
         <div className="palco-grade min-h-0 flex-1">
           {layout.cellIds.map((id) => (
             <VideoTile
-              key={id}
+              key={tileKey(id)}
               variant="cell"
               stream={props.streamsById.get(id)!}
               label={props.nameOf(id)}
@@ -58,6 +67,7 @@ export function Palco(props: PalcoProps) {
           <div className="stage-surface flex min-h-0 flex-1">
             {layout.stagedId && (
               <VideoTile
+                key={tileKey(layout.stagedId)}
                 stream={props.streamsById.get(layout.stagedId)!}
                 label={props.nameOf(layout.stagedId)}
                 meta={props.stageMeta}
@@ -72,7 +82,7 @@ export function Palco(props: PalcoProps) {
             <div className="palco-thumbs flex flex-none gap-3 overflow-x-auto">
               {layout.thumbnailIds.map((id) => (
                 <VideoTile
-                  key={id}
+                  key={tileKey(id)}
                   variant="thumbnail"
                   stream={props.streamsById.get(id)!}
                   label={props.nameOf(id)}

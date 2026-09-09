@@ -4,6 +4,7 @@ import { initialClientSessaoState, sessaoReducer } from "../../shared/clientSess
 import type { ConnectAction, SignalingConnectionState } from "../../shared/ipc.js";
 import { MeshManager, type ConnectionDiagnostics, type MeshManagerHandlers } from "./media/meshManager.js";
 import { captureFonte } from "./media/capture.js";
+import { logToMain } from "./log.js";
 
 export interface QualityWarning {
   readonly id: string;
@@ -32,6 +33,7 @@ function buildHandlers(
     },
     onDiagnostics: (snapshots) => setDiagnostics(snapshots),
     onEncoderFallback: (key) => {
+      logToMain("warn", "encoder-fallback-to-software", { key });
       setWarnings((prev) => [
         ...prev,
         {
@@ -59,14 +61,53 @@ export function useSessao() {
   const [warnings, setWarnings] = useState<QualityWarning[]>([]);
   const [isTransmitting, setIsTransmitting] = useState(false);
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
+  /**
+   * Muda toda vez que a captura local é desmontada. Entra na `key` das Fontes do Palco
+   * (`Palco.tsx`), forçando elementos `<video>` novos para quem sobrou.
+   *
+   * Parar de transmitir fecha todas as peer connections de saída e chama `track.stop()` na captura
+   * no mesmo instante, e o `<video>` de quem continua trava preto — só em quem parou, que é quem
+   * passa por esse desmonte. Nada no layout muda para esse elemento quando quem parou era a
+   * miniatura, então sem esta época ele nunca é recriado: com um Transmissor só, o alternador
+   * Foco/Grade some e não sobra nem gesto para forçar o remonte.
+   */
+  const [mediaEpoch, setMediaEpoch] = useState(0);
 
   const stateRef = useRef(state);
   stateRef.current = state;
   const pendingStreamRef = useRef<MediaStream | null>(null);
+  /** Remove o listener de `ended` do track capturado; `null` quando não há captura em curso. */
+  const localTrackWatchRef = useRef<(() => void) | null>(null);
   const previousMyIdRef = useRef<string | null>(null);
   const meshRef = useRef<MeshManager | null>(null);
 
   const send = useCallback((message: AppToSignalerMessage) => window.scrnBroadcast.send(message), []);
+
+  const unwatchLocalTrack = useCallback(() => {
+    localTrackWatchRef.current?.();
+    localTrackWatchRef.current = null;
+  }, []);
+
+  /**
+   * A pessoa também pode parar pela barra nativa do Chromium, ou fechando a janela que escolheu
+   * como Fonte. Sem escutar `ended`, ela continuava em `transmissores` com o Palco congelado para
+   * todo mundo, e ninguém — nem ela — tinha como tirar. `track.stop()` não dispara `ended`, então
+   * parar pelo botão do app não passa por aqui.
+   */
+  const watchLocalTrack = useCallback(
+    (stream: MediaStream) => {
+      unwatchLocalTrack();
+      const track = stream.getVideoTracks()[0];
+      if (!track) return;
+      const onEnded = (): void => {
+        localTrackWatchRef.current = null;
+        send({ type: "release-palco" });
+      };
+      track.addEventListener("ended", onEnded);
+      localTrackWatchRef.current = () => track.removeEventListener("ended", onEnded);
+    },
+    [send, unwatchLocalTrack],
+  );
 
   // Uma malha nova a cada conexão (não só na primeira): reaproveitar a instância anterior depois
   // de `close()` deixaria o timer de diagnóstico morto para a próxima Sessão — `close()` para
@@ -93,6 +134,10 @@ export function useSessao() {
           // queda de WebSocket, então a malha anterior fica órfã e é descartada.
           let currentMesh = mesh;
           if (previousMyIdRef.current && previousMyIdRef.current !== message.participanteId) {
+            logToMain("warn", "identity-changed-on-reconnect", {
+              previous: previousMyIdRef.current,
+              current: message.participanteId,
+            });
             currentMesh.close();
             currentMesh = createMesh();
             currentMesh.setIceServers(stateRef.current.iceServers);
@@ -131,17 +176,27 @@ export function useSessao() {
             setIsTransmitting(true);
           } else if (!isTransmittingNow && wasTransmitting) {
             mesh.stopTransmitting();
+            unwatchLocalTrack();
             setIsTransmitting(false);
             setLocalStream(null);
+            setMediaEpoch((epoch) => epoch + 1);
+            // Se o quadro preto voltar, esta linha diz se a época chegou a mudar: ou o remonte
+            // aconteceu e a causa é outra, ou não aconteceu e o gatilho não é o que eu suponho.
+            logToMain("info", "local-transmission-stopped", {
+              transmissoresRestantes: message.participanteIds.length,
+            });
           }
           break;
         }
 
         case "palco-denied":
           if (pendingStreamRef.current) {
+            unwatchLocalTrack();
             for (const track of pendingStreamRef.current.getTracks()) track.stop();
             pendingStreamRef.current = null;
             setLocalStream(null);
+            // Mesmo `track.stop()` do ramo acima, mesmo estrago nos `<video>` que já estavam no ar.
+            setMediaEpoch((epoch) => epoch + 1);
           }
           break;
 
@@ -158,10 +213,12 @@ export function useSessao() {
     const offState = window.scrnBroadcast.onConnectionState((connectionState) => {
       setConnectionState(connectionState);
       if (connectionState.status === "closed") {
+        logToMain("error", "signaling-closed", { reason: connectionState.reason });
         // O Durable Object fecha o WebSocket sem mensagem alguma ao expulsar ou ao encerrar uma
         // Sessão já terminada (durableObject.ts: safeClose) — sem isto, o app expulso ficava
         // parado na última tela, sem saber por quê, até clicar em "Sair" manualmente.
         meshRef.current?.close();
+        unwatchLocalTrack();
         setIsTransmitting(false);
         setLocalStream(null);
         setRemoteStreams(new Map());
@@ -178,6 +235,7 @@ export function useSessao() {
   useEffect(() => {
     return () => {
       meshRef.current?.close();
+      localTrackWatchRef.current?.();
     };
   }, []);
 
@@ -204,26 +262,30 @@ export function useSessao() {
     let stream: MediaStream;
     try {
       stream = await captureFonte();
-    } catch {
-      return; // seletor de Fonte cancelado, ou getDisplayMedia recusado.
+    } catch (error) {
+      // Cancelar no seletor e ter a captura recusada chegam aqui iguais; o log é o que distingue.
+      logToMain("info", "capture-fonte-aborted", { message: String(error) });
+      return;
     }
     pendingStreamRef.current = stream;
     setLocalStream(stream);
+    watchLocalTrack(stream);
     send({ type: "request-palco" });
-  }, [send]);
+  }, [send, watchLocalTrack]);
 
   const releasePalco = useCallback(() => send({ type: "release-palco" }), [send]);
   const expel = useCallback((participanteId: string) => send({ type: "expel", participanteId }), [send]);
 
   const leave = useCallback(() => {
     meshRef.current?.close();
+    unwatchLocalTrack();
     window.scrnBroadcast.leave();
     dispatch({ source: "reset" });
     setIsTransmitting(false);
     setLocalStream(null);
     setRemoteStreams(new Map());
     setDiagnostics([]);
-  }, []);
+  }, [unwatchLocalTrack]);
 
   const dismissWarning = useCallback((id: string) => {
     setWarnings((prev) => prev.filter((w) => w.id !== id));
@@ -236,10 +298,19 @@ export function useSessao() {
       myId: state.myId,
       connections: diagnostics,
     };
-    return window.scrnBroadcast.exportDiagnostics({
+    const result = await window.scrnBroadcast.exportDiagnostics({
       suggestedFileName: `scrn-broadcast-diagnostico-${Date.now()}.json`,
       content: JSON.stringify(payload, null, 2),
     });
+    // Falhar em silêncio era o comportamento anterior: o botão não fazia nada e ninguém sabia
+    // que o disco tinha recusado. O canal de avisos já está na frente da pessoa.
+    if (result.error) {
+      setWarnings((prev) => [
+        ...prev,
+        { id: `export:${Date.now()}`, text: `Não foi possível salvar o diagnóstico: ${result.error}` },
+      ]);
+    }
+    return result;
   }, [state.codigoDeSessao, state.myId, diagnostics]);
 
   return {
@@ -250,6 +321,7 @@ export function useSessao() {
     warnings,
     isTransmitting,
     localStream,
+    mediaEpoch,
     connect,
     respondEntry,
     startTransmitindo,

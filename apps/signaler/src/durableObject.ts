@@ -24,6 +24,8 @@ interface ConnectionAttachment {
   readonly participanteId: string;
   readonly codigoDeSessao: string;
   readonly name?: string;
+  /** Chave do pedido de entrada (spec 0001, `joinNonce`). Reconstruída junto do resto do estado. */
+  readonly joinNonce?: string;
   readonly admissionState?: "pending-approval" | "admitted";
   readonly isAnfitriao?: boolean;
   readonly isTransmissor?: boolean;
@@ -81,6 +83,7 @@ export class SessaoDurableObject extends DurableObject<Env> {
         participanteId: attachment.participanteId,
         name: message.name,
         protocolVersion: message.protocolVersion,
+        joinNonce: message.joinNonce,
         codigoDeSessao: attachment.codigoDeSessao,
       });
       if (!result.state) {
@@ -173,6 +176,7 @@ export class SessaoDurableObject extends DurableObject<Env> {
         id: a.participanteId,
         name: a.name ?? "",
         state: a.admissionState,
+        joinNonce: a.joinNonce ?? "",
       });
       if (a.isTransmissor) transmissores.push(a.participanteId);
     }
@@ -207,6 +211,7 @@ export class SessaoDurableObject extends DurableObject<Env> {
         participanteId: prev.participanteId,
         codigoDeSessao: prev.codigoDeSessao,
         name: participante.name,
+        joinNonce: participante.joinNonce,
         admissionState: participante.state === "left" ? undefined : participante.state,
         isAnfitriao: id === newState.anfitriaoId,
         isTransmissor: newState.transmissores.includes(id),

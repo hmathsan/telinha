@@ -77,9 +77,27 @@ importa em dois momentos — aprovar alguém e expulsar alguém — não o tempo
 
 ### Aprovação de entrada
 
-Faixa empilhável no topo da área de conteúdo, com o nome digitado e os botões Aprovar e Recusar.
-Empilhável, não modal: dois pedidos simultâneos viram dois modais um sobre o outro, e aí a pessoa
-aprova quem não queria.
+Pilha de cards no topo da área de conteúdo. **Um pedido por vez na frente**, com o nome digitado e
+os botões Aprovar e Recusar; os seguintes ficam desenhados atrás, em leque, no máximo dois, e um
+contador `+N esperando` diz quantos faltam. Responder o da frente traz o próximo, e a pilha
+diminui.
+
+Não modal, pelo motivo de sempre: dois pedidos simultâneos viram dois modais um sobre o outro, e aí
+a pessoa aprova quem não queria. E não uma faixa por pedido, pelo motivo que só apareceu no teste
+com várias pessoas: cinco pedidos viravam cinco faixas empilhadas empurrando o Palco para fora da
+tela. A pilha inteira ocupa a altura de um card.
+
+A ordem é a de chegada — quem pediu primeiro é respondido primeiro. Os cards de trás são
+profundidade, não conteúdo: quem usa leitor de tela recebe o pedido da frente e o contador.
+
+### Entrada, esperando aprovação
+
+Depois de "Entrar", a Entrada mostra uma faixa de acento — *"Pedido enviado. O Anfitrião precisa
+aceitar sua entrada — aguarde."* — e os campos e os dois botões dão lugar a **Cancelar pedido**.
+
+Sem isso, a tela ficava idêntica depois do clique, ninguém sabia que havia uma aprovação no
+caminho, e as pessoas clicavam de novo — cada clique um pedido a mais na fila do Anfitrião.
+Cancelar retira o pedido da fila dele em vez de deixá-lo pendurado.
 
 ### Indicador de qualidade
 

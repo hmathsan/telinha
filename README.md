@@ -126,8 +126,14 @@ máquinas se acharem diretamente, e a conexão precisa de um intermediário. O T
 ele tem cota mensal. Se ela acabar, essas redes param de conectar até virar o mês. O diagnóstico
 mostra se a sua conexão está passando por esse caminho.
 
+**A Sessão terminou sozinha, e ninguém sabe por quê.**
+O Telinha grava um log local do que aconteceu. Abra o diagnóstico e clique em **Abrir pasta de
+logs** — ou vá direto a `%APPDATA%\Telinha\logs`. O arquivo `main.log` tem as quedas de
+conexão com código e motivo, as falhas de ICE e os erros que o app não conseguiu mostrar na tela.
+Nada dele sai da sua máquina: quem manda o arquivo para alguém é você.
+
 Se nada disso resolveu, [abra uma issue](https://github.com/hmathsan/scrn-broadcast/issues/new/choose)
-e **anexe o diagnóstico exportado** — sem ele, quase todo problema de mídia vira adivinhação.
+e **anexe o diagnóstico exportado e o `main.log`** — sem eles, quase todo problema vira adivinhação.
 
 ## Roteiro
 

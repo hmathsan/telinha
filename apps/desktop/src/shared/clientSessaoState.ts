@@ -23,6 +23,12 @@ export interface EntryRequestEntry {
 export interface ClientSessaoState {
   readonly screen: "entry" | "sessao";
   readonly pendingMyName: string | null;
+  /**
+   * Pedido de entrada enviado, sem resposta do Anfitrião ainda. Trava os botões da Entrada: sem
+   * isso, a tela ficava idêntica depois do clique e as pessoas clicavam em "Entrar" de novo — e
+   * cada clique era uma conexão, um `participanteId` e um pedido a mais para o Anfitrião.
+   */
+  readonly awaitingApproval: boolean;
   readonly myId: string | null;
   readonly isAnfitriao: boolean;
   readonly codigoDeSessao: string | null;
@@ -44,6 +50,7 @@ export interface ClientSessaoState {
 export const initialClientSessaoState: ClientSessaoState = {
   screen: "entry",
   pendingMyName: null,
+  awaitingApproval: false,
   myId: null,
   isAnfitriao: false,
   codigoDeSessao: null,
@@ -75,6 +82,8 @@ export function sessaoReducer(state: ClientSessaoState, action: ClientSessaoActi
     return {
       ...initialClientSessaoState,
       pendingMyName: action.connectAction.name,
+      // Só quem entra por Código espera aprovação; quem cria a Sessão é o próprio Anfitrião.
+      awaitingApproval: action.connectAction.kind === "join",
       codigoDeSessao: action.connectAction.kind === "join" ? action.connectAction.codigoDeSessao : null,
     };
   }
@@ -100,6 +109,7 @@ export function sessaoReducer(state: ClientSessaoState, action: ClientSessaoActi
       return {
         ...state,
         screen: "sessao",
+        awaitingApproval: false,
         myId: message.participanteId,
         isAnfitriao: true,
         codigoDeSessao: message.codigoDeSessao,
@@ -120,6 +130,7 @@ export function sessaoReducer(state: ClientSessaoState, action: ClientSessaoActi
       return {
         ...state,
         screen: "sessao",
+        awaitingApproval: false,
         myId: message.participanteId,
         isAnfitriao: false,
         roster: message.roster,
@@ -128,7 +139,13 @@ export function sessaoReducer(state: ClientSessaoState, action: ClientSessaoActi
       };
 
     case "entry-refused":
-      return { ...state, entryError: message.reason };
+      return { ...state, awaitingApproval: false, entryError: message.reason };
+
+    case "entry-request-withdrawn":
+      return {
+        ...state,
+        pendingEntryRequests: state.pendingEntryRequests.filter((r) => r.participanteId !== message.participanteId),
+      };
 
     case "participante-joined":
       return {

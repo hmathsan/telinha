@@ -24,8 +24,8 @@ Todas as mensagens são JSON com um campo `type` discriminante, validadas com Zo
 
 | Type | Campos | Quem pode enviar |
 |---|---|---|
-| `create-sessao` | `name`, `protocolVersion` | qualquer um |
-| `join` | `codigoDeSessao`, `name`, `protocolVersion` | qualquer um |
+| `create-sessao` | `name`, `protocolVersion`, `joinNonce` | qualquer um |
+| `join` | `codigoDeSessao`, `name`, `protocolVersion`, `joinNonce` | qualquer um |
 | `respond-entry` | `participanteId`, `approved` | só o Anfitrião |
 | `expel` | `participanteId` | só o Anfitrião |
 | `request-palco` | — | qualquer Participante admitido |
@@ -36,12 +36,18 @@ Todas as mensagens são JSON com um campo `type` discriminante, validadas com Zo
 `payload` do `signal` é opaco para o sinalizador: ele repassa sem inspecionar. É por ali que
 trafegam SDP e ICE candidates.
 
+`joinNonce` é um UUID sorteado uma vez por processo do app e reenviado em toda tentativa. Não é
+identidade e não autentica nada — serve para o sinalizador reconhecer que o pedido que chega vem do
+mesmo app do pedido anterior e substituir um pelo outro. Veja a
+[ADR 0010](../adr/0010-chave-de-pedido-de-entrada.md).
+
 ### Sinalizador → App
 
 | Type | Campos | Destinatário |
 |---|---|---|
 | `sessao-created` | `codigoDeSessao`, `participanteId` | quem criou |
 | `entry-request` | `participanteId`, `name` | só o Anfitrião |
+| `entry-request-withdrawn` | `participanteId` | só o Anfitrião |
 | `entry-approved` | `participanteId`, `roster`, `transmissores` | quem entrou |
 | `entry-refused` | `reason` | quem tentou |
 | `participante-joined` | `participante` | todos os demais |
@@ -74,7 +80,14 @@ Regras que a máquina impõe:
 - `request-palco` concede a vaga se `transmissores.length < MAX_TRANSMISSORES`; senão responde
   negando com `palco-denied { reason: 'palco-full' }`. Primeiro a chegar, sem fila — o Durable
   Object é single-threaded, então a ordem de chegada já resolve a disputa.
+- `join` com um `joinNonce` que já está na Sessão remove o Participante anterior antes de registrar
+  o novo — o pendente vira `entry-request-withdrawn` para o Anfitrião; o admitido vira
+  `participante-left { reason: 'disconnected' }` para todos, liberando a vaga de Palco se tinha uma.
+  Isso acontece **antes** da conta de `MAX_PARTICIPANTES`: um fantasma não rouba a vaga de si mesmo.
 - `join` com a Sessão em `MAX_PARTICIPANTES` recusa com `'sessao-full'`.
+- Um Participante em `pending-approval` que envia `leave` (ou cuja conexão cai) gera
+  `entry-request-withdrawn` para o Anfitrião. Sem isso o pedido fica na fila dele para sempre, e
+  aprová-lo não faz nada.
 - `expel` e `respond-entry` vindos de quem não é o Anfitrião são descartados.
 - A saída do Anfitrião encerra a Sessão para todos.
 

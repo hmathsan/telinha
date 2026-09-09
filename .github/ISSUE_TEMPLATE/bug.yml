@@ -60,3 +60,15 @@ body:
         Sessão.
     validations:
       required: false
+
+  - type: textarea
+    id: log
+    attributes:
+      label: Arquivo de log
+      description: |
+        No mesmo painel de diagnóstico, clique em **Abrir pasta de logs** (ou vá a
+        `%APPDATA%\Telinha\logs`) e **arraste o `main.log` para esta caixa.**
+        Ele é o único que sobrevive ao app fechar sozinho: traz quedas de conexão com código e
+        motivo, falhas de ICE e erros que não deu para mostrar na tela. Não contém a sua tela.
+    validations:
+      required: false

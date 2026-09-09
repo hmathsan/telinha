@@ -13,7 +13,7 @@ function stubFor(codigoDeSessao: string) {
 
 test("uma sessao sem nenhum participante agenda o alarme de autodestruicao", async () => {
   const host = await connect("/sessao/create");
-  send(host, { type: "create-sessao", name: "Ana", protocolVersion: PROTOCOL_VERSION });
+  send(host, { type: "create-sessao", name: "Ana", protocolVersion: PROTOCOL_VERSION, joinNonce: crypto.randomUUID() });
   const created = await nextMessage(host);
   if (created.type !== "sessao-created") throw new Error("expected sessao-created");
   await nextMessage(host); // ice-servers
@@ -34,6 +34,7 @@ test("create-sessao recusado por versao incompativel tambem agenda o alarme", as
     type: "create-sessao",
     name: "Ana",
     protocolVersion: PROTOCOL_VERSION + 1,
+    joinNonce: crypto.randomUUID(),
   });
   const refused = await nextMessage(attempt);
   expect(refused).toEqual({ type: "entry-refused", reason: "incompatible-version" });

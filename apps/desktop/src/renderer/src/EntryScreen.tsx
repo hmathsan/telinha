@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import type { EntryRefusedReason, SessaoEndedReason } from "@scrn-broadcast/protocol";
 import { formatCodigoDeSessao, isCodigoDeSessaoCompleto, normalizeCodigoDeSessao } from "../../shared/codigoDeSessao.js";
 import type { ConnectAction } from "../../shared/ipc.js";
@@ -23,11 +23,19 @@ const DISCONNECT_REASON_MESSAGES: Record<string, string> = {
 
 const NAME_STORAGE_KEY = "scrn-broadcast:name";
 
+const NOTICE_CLASS = { warn: "card-warn", danger: "card-danger", accent: "card-accent" } as const;
+
 /** Os quatro motivos de recusa e os de desconexão, numa faixa de aviso do Nocturne (spec 0008). */
-function Notice({ tone, children }: { readonly tone: "warn" | "danger"; readonly children: string }) {
+function Notice({
+  tone,
+  children,
+}: {
+  readonly tone: keyof typeof NOTICE_CLASS;
+  readonly children: ReactNode;
+}) {
   return (
-    <p className={`card ${tone === "danger" ? "card-danger" : "card-warn"} flex items-center gap-3 text-sm`} role="status">
-      <IconWarningCircle />
+    <p className={`card ${NOTICE_CLASS[tone]} flex items-center gap-3 text-sm`} role="status">
+      {tone === "accent" ? <span className="dot dot-live" /> : <IconWarningCircle />}
       <span>{children}</span>
     </p>
   );
@@ -37,10 +45,20 @@ export interface EntryScreenProps {
   readonly entryError: EntryRefusedReason | null;
   readonly sessaoEndedReason: SessaoEndedReason | null;
   readonly lastDisconnectReason: string | null;
+  /** Pedido enviado, esperando o Anfitrião. Trava os dois botões enquanto durar. */
+  readonly awaitingApproval: boolean;
   readonly onConnect: (action: ConnectAction) => void;
+  readonly onCancel: () => void;
 }
 
-export function EntryScreen({ entryError, sessaoEndedReason, lastDisconnectReason, onConnect }: EntryScreenProps) {
+export function EntryScreen({
+  entryError,
+  sessaoEndedReason,
+  lastDisconnectReason,
+  awaitingApproval,
+  onConnect,
+  onCancel,
+}: EntryScreenProps) {
   const [name, setName] = useState(() => localStorage.getItem(NAME_STORAGE_KEY) ?? "");
   const [codigoDeSessao, setCodigoDeSessao] = useState("");
 
@@ -66,6 +84,15 @@ export function EntryScreen({ entryError, sessaoEndedReason, lastDisconnectReaso
           </p>
         </div>
 
+        {/*
+         * Sem este aviso, a tela ficava idêntica depois do clique em "Entrar" — e as pessoas
+         * clicavam de novo, sem saber que o Anfitrião precisa aceitar. Cada clique abria uma
+         * conexão nova, com um `participanteId` novo, e o Anfitrião via a mesma pessoa várias
+         * vezes na fila.
+         */}
+        {awaitingApproval && (
+          <Notice tone="accent">Pedido enviado. O Anfitrião precisa aceitar sua entrada — aguarde.</Notice>
+        )}
         {sessaoEndedReason && <Notice tone="warn">{SESSAO_ENDED_MESSAGES[sessaoEndedReason]}</Notice>}
         {entryError && <Notice tone="danger">{ENTRY_ERROR_MESSAGES[entryError]}</Notice>}
         {lastDisconnectReason && (
@@ -74,7 +101,13 @@ export function EntryScreen({ entryError, sessaoEndedReason, lastDisconnectReaso
 
         <label className="field">
           <span className="field-label">Seu nome</span>
-          <input className="input" value={name} onChange={(e) => persistName(e.target.value)} autoFocus />
+          <input
+            className="input"
+            value={name}
+            onChange={(e) => persistName(e.target.value)}
+            disabled={awaitingApproval}
+            autoFocus
+          />
         </label>
 
         {/*
@@ -87,6 +120,7 @@ export function EntryScreen({ entryError, sessaoEndedReason, lastDisconnectReaso
             className="input input-code"
             value={formatCodigoDeSessao(codigoDeSessao)}
             onChange={(e) => setCodigoDeSessao(normalizeCodigoDeSessao(e.target.value))}
+            disabled={awaitingApproval}
             placeholder="ABC DEF"
             spellCheck={false}
             autoComplete="off"
@@ -94,22 +128,35 @@ export function EntryScreen({ entryError, sessaoEndedReason, lastDisconnectReaso
           <span className="field-hint">Deixe em branco para criar uma Sessão nova.</span>
         </label>
 
-        <div className="flex gap-3">
-          <button
-            className="btn btn-primary btn-block"
-            disabled={!nameFilled}
-            onClick={() => onConnect({ kind: "create", name: name.trim() })}
-          >
-            Criar Sessão
+        {/*
+         * Esperando aprovação, os dois botões dão lugar a "Cancelar pedido". Travar sem oferecer
+         * saída seria armadilha: um Anfitrião que simplesmente não responde deixaria a pessoa
+         * presa na tela, e cancelar retira o pedido da fila dele (`entry-request-withdrawn`).
+         */}
+        {awaitingApproval ? (
+          <button className="btn btn-secondary btn-block" onClick={onCancel}>
+            Cancelar pedido
           </button>
-          <button
-            className="btn btn-secondary btn-block"
-            disabled={!nameFilled || !codigoCompleto}
-            onClick={() => onConnect({ kind: "join", name: name.trim(), codigoDeSessao: normalizeCodigoDeSessao(codigoDeSessao) })}
-          >
-            Entrar
-          </button>
-        </div>
+        ) : (
+          <div className="flex gap-3">
+            <button
+              className="btn btn-primary btn-block"
+              disabled={!nameFilled}
+              onClick={() => onConnect({ kind: "create", name: name.trim() })}
+            >
+              Criar Sessão
+            </button>
+            <button
+              className="btn btn-secondary btn-block"
+              disabled={!nameFilled || !codigoCompleto}
+              onClick={() =>
+                onConnect({ kind: "join", name: name.trim(), codigoDeSessao: normalizeCodigoDeSessao(codigoDeSessao) })
+              }
+            >
+              Entrar
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
