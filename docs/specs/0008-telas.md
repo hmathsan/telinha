@@ -129,8 +129,9 @@ para Fonte. Janelas levam o nome que o sistema dá. Sem linha de resolução: pa
 seria obtível via `screen.getAllDisplays()`, mas para janelas exigiria chamada nativa do Windows,
 e uma assimetria dessas confunde mais do que a informação ajuda.
 
-O subtítulo diz que **o áudio do sistema não é compartilhado**, o que é verdade: `capture.ts`
-passa `audio: false`.
+**_Emendado._** O subtítulo dizia que **o áudio do sistema não é compartilhado**, o que era verdade
+enquanto `capture.ts` passava `audio: false`. Com o Som, ele dá lugar ao alternador "Transmitir com
+Som" e ao aviso do Som do sistema — veja a [0009](./0009-som.md) e a [0010](./0010-controles-de-som.md).
 
 ## Diagnóstico
 

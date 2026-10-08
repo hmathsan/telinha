@@ -2,9 +2,26 @@ import { describe, expect, it } from "vitest";
 import {
   DEVTOOLS_ENV_VAR,
   DISABLE_HW_ACCEL_ENV_VAR,
+  SOM_FORCE_ENV_VAR,
   devToolsAllowed,
   disabledHardwareAccelSwitches,
+  somForced,
 } from "./hardening.js";
+
+describe("somForced", () => {
+  it("não força por padrão", () => {
+    expect(somForced({})).toBe(false);
+  });
+
+  it("força com a válvula", () => {
+    expect(somForced({ [SOM_FORCE_ENV_VAR]: "1" })).toBe(true);
+  });
+
+  it("só o valor '1' força — 'true' e '0' não", () => {
+    expect(somForced({ [SOM_FORCE_ENV_VAR]: "true" })).toBe(false);
+    expect(somForced({ [SOM_FORCE_ENV_VAR]: "0" })).toBe(false);
+  });
+});
 
 describe("devToolsAllowed", () => {
   it("libera em desenvolvimento, com ou sem a variável", () => {

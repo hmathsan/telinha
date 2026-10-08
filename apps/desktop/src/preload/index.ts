@@ -10,6 +10,7 @@ import {
   type PickerApi,
   type ScrnBroadcastApi,
   type SignalingConnectionState,
+  type SomCaptureReport,
 } from "../shared/ipc.js";
 
 /**
@@ -36,6 +37,8 @@ const scrnBroadcast: ScrnBroadcastApi = {
     ipcRenderer.invoke(IPC_CHANNELS.diagnosticsExport, request) as Promise<DiagnosticsExportResult>,
   openLogsFolder: () => ipcRenderer.send(IPC_CHANNELS.logsOpenFolder),
   log: (entry: LogEntry) => ipcRenderer.send(IPC_CHANNELS.logWrite, entry),
+  getLastSomCapture: (): Promise<SomCaptureReport | null> => ipcRenderer.invoke(IPC_CHANNELS.somLastCapture),
+  retryCaptureWithoutSom: (): Promise<boolean> => ipcRenderer.invoke(IPC_CHANNELS.somRetryWithoutSom),
 };
 
 const picker: PickerApi = {

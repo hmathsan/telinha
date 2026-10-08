@@ -1,9 +1,10 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { MAX_TRANSMISSORES } from "@scrn-broadcast/protocol";
 import type { ClientSessaoState } from "../../shared/clientSessaoState.js";
 import type { SignalingConnectionState } from "../../shared/ipc.js";
 import { isConnectionDegraded } from "../../shared/media/connectionQuality.js";
 import { selectPalcoClick, selectPalcoLayout, type ModoPalco } from "../../shared/palcoSelection.js";
+import { selectSomAudivel } from "../../shared/somSelection.js";
 import type { ConnectionDiagnostics } from "./media/meshManager.js";
 import { useVideoSurfaces } from "./media/videoSurfaces.js";
 import type { QualityWarning } from "./useSessao.js";
@@ -77,6 +78,20 @@ export function SessaoScreen(props: SessaoScreenProps) {
       }),
     [state.transmissores, streamsById, promotedId, modoPreferido],
   );
+
+  // Quem se ouve é decisão de `selectSomAudivel`. O efeito roda depois do commit, e todo elemento
+  // nasce mudo, então nada toca antes de a regra valer — nem a própria Fonte, que ela nunca inclui.
+  const audivel = useMemo(
+    () =>
+      selectSomAudivel({ modo: layout.modo, stagedId: layout.stagedId, cellIds: layout.cellIds, myId: state.myId }),
+    [layout.modo, layout.stagedId, layout.cellIds, state.myId],
+  );
+  useEffect(() => {
+    for (const id of streamsById.keys()) {
+      const surface = surfaceOf(id);
+      if (surface) surface.muted = !audivel.has(id);
+    }
+  }, [streamsById, audivel, surfaceOf]);
 
   const stagedId = layout.stagedId;
   const stagedDiagnostics =

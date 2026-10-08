@@ -25,6 +25,7 @@ export interface StatsLike {
   readonly encoderImplementation?: string;
   readonly qualityLimitationReason?: string;
   readonly currentRoundTripTime?: number;
+  readonly audioLevel?: number;
   readonly timestamp?: number;
   readonly [key: string]: unknown;
 }

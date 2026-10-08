@@ -19,6 +19,15 @@ export interface ConnectionDiagnosticsSnapshot {
   readonly roundTripTimeMs: number | null;
   readonly selectedCandidatePair: CandidatePairSummary | null;
   readonly relay: RelayStatus;
+  /** Os campos do Som (spec 0009, "Diagnóstico"). Todos `null` sem track de áudio. */
+  readonly somOutboundBitrateBps: number | null;
+  readonly somInboundBitrateBps: number | null;
+  readonly somPacketsLost: number | null;
+  /**
+   * No Transmissor, o nível do `media-source` — o que a captura entrega antes do encoder. No
+   * Espectador, o do `inbound-rtp`. É o que alimenta o `SomSilenceTracker`.
+   */
+  readonly somAudioLevel: number | null;
 }
 
 function candidatePairSummary(stats: StatsReportLike, pair: StatsLike | undefined): CandidatePairSummary | null {
@@ -47,6 +56,9 @@ export class DiagnosticsSampler {
     const selectedPair = findSelectedCandidatePair(stats);
     const outbound = findFirstStat(stats, (s) => s.type === "outbound-rtp" && s.kind === "video");
     const inbound = findFirstStat(stats, (s) => s.type === "inbound-rtp" && s.kind === "video");
+    const somOutbound = findFirstStat(stats, (s) => s.type === "outbound-rtp" && s.kind === "audio");
+    const somInbound = findFirstStat(stats, (s) => s.type === "inbound-rtp" && s.kind === "audio");
+    const somSource = findFirstStat(stats, (s) => s.type === "media-source" && s.kind === "audio");
 
     const outboundBitrateBps =
       outbound?.bytesSent !== undefined
@@ -55,6 +67,14 @@ export class DiagnosticsSampler {
     const inboundBitrateBps =
       inbound?.bytesReceived !== undefined
         ? this.bitrateFor(`${connectionKey}:in`, inbound.bytesReceived, inbound.timestamp ?? Date.now())
+        : null;
+    const somOutboundBitrateBps =
+      somOutbound?.bytesSent !== undefined
+        ? this.bitrateFor(`${connectionKey}:som-out`, somOutbound.bytesSent, somOutbound.timestamp ?? Date.now())
+        : null;
+    const somInboundBitrateBps =
+      somInbound?.bytesReceived !== undefined
+        ? this.bitrateFor(`${connectionKey}:som-in`, somInbound.bytesReceived, somInbound.timestamp ?? Date.now())
         : null;
 
     const framesPerSecond = outbound?.framesPerSecond ?? inbound?.framesPerSecond;
@@ -74,6 +94,10 @@ export class DiagnosticsSampler {
         selectedPair?.currentRoundTripTime !== undefined ? Math.round(selectedPair.currentRoundTripTime * 1000) : null,
       selectedCandidatePair: candidatePairSummary(stats, selectedPair),
       relay: detectRelay(stats),
+      somOutboundBitrateBps,
+      somInboundBitrateBps,
+      somPacketsLost: somInbound?.packetsLost ?? null,
+      somAudioLevel: somSource?.audioLevel ?? somInbound?.audioLevel ?? null,
     };
   }
 
@@ -82,6 +106,8 @@ export class DiagnosticsSampler {
   forget(connectionKey: string): void {
     this.priorByKey.delete(`${connectionKey}:out`);
     this.priorByKey.delete(`${connectionKey}:in`);
+    this.priorByKey.delete(`${connectionKey}:som-out`);
+    this.priorByKey.delete(`${connectionKey}:som-in`);
   }
 
   private bitrateFor(key: string, bytes: number, timestampMs: number): number | null {

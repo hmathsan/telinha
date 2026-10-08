@@ -2,6 +2,7 @@ import { useCallback, useEffect, useReducer, useRef, useState, type Dispatch, ty
 import type { AppToSignalerMessage, SignalerToAppMessage } from "@scrn-broadcast/protocol";
 import { initialClientSessaoState, sessaoReducer } from "../../shared/clientSessaoState.js";
 import type { ConnectAction, SignalingConnectionState } from "../../shared/ipc.js";
+import type { SomStatus } from "../../shared/media/somCapture.js";
 import { MeshManager, type ConnectionDiagnostics, type MeshManagerHandlers } from "./media/meshManager.js";
 import { captureFonte } from "./media/capture.js";
 import { logToMain } from "./log.js";
@@ -61,6 +62,8 @@ export function useSessao() {
   const [warnings, setWarnings] = useState<QualityWarning[]>([]);
   const [isTransmitting, setIsTransmitting] = useState(false);
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
+  /** O Som da última captura (spec 0009). Quem consome é a 0010. `null` sem captura. */
+  const [somStatus, setSomStatus] = useState<SomStatus | null>(null);
 
   const stateRef = useRef(state);
   stateRef.current = state;
@@ -242,7 +245,9 @@ export function useSessao() {
   const startTransmitindo = useCallback(async () => {
     let stream: MediaStream;
     try {
-      stream = await captureFonte();
+      const capture = await captureFonte();
+      stream = capture.stream;
+      setSomStatus(capture.som);
     } catch (error) {
       // Cancelar no seletor e ter a captura recusada chegam aqui iguais; o log é o que distingue.
       logToMain("info", "capture-fonte-aborted", { message: String(error) });
@@ -302,6 +307,8 @@ export function useSessao() {
     warnings,
     isTransmitting,
     localStream,
+    // Sem captura em curso não há Som a relatar, e todo caminho que encerra a captura zera `localStream`.
+    somStatus: localStream ? somStatus : null,
     connect,
     respondEntry,
     startTransmitindo,

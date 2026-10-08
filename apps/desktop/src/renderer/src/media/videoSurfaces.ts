@@ -6,6 +6,7 @@ import { logToMain } from "../log.js";
 const WATCHDOG_INTERVAL_MS = 500;
 
 interface Surface {
+  readonly id: string;
   readonly element: HTMLVideoElement;
   stream: MediaStream;
   lastFrameAt: number;
@@ -99,21 +100,21 @@ function createSurface(id: string, stream: MediaStream): Surface {
   const element = document.createElement("video");
   element.autoplay = true;
   element.playsInline = true;
-  // Áudio de Fonte ainda não existe (spec 0003); sem `muted`, o autoplay seria recusado.
+  // Mudo até o Palco decidir quem se ouve (`selectSomAudivel`, aplicado pela `SessaoScreen`). Nascer
+  // tocando faria o Som de todo Transmissor — e o da própria Fonte — soar antes da primeira decisão.
   element.muted = true;
 
   // Um `<video>` de MediaStream não retoma sozinho depois de ser interrompido: fica no último
   // quadro, ou preto. `pause` e `emptied` são as interrupções que o elemento anuncia; o quadro
   // preto que este módulo existe para resolver não anuncia nenhuma, e cai no vigia.
   const play = (): void => {
-    void element.play().catch(() => {
-      // `play()` rejeita quando o elemento sai do documento no meio da promessa; nada a fazer.
-    });
+    playSurface(id, element);
   };
   const events: readonly string[] = ["loadedmetadata", "pause", "emptied"];
   for (const event of events) element.addEventListener(event, play);
 
   const surface: Surface = {
+    id,
     element,
     stream,
     lastFrameAt: performance.now(),
@@ -132,10 +133,22 @@ function createSurface(id: string, stream: MediaStream): Surface {
   return surface;
 }
 
+function playSurface(id: string, element: HTMLVideoElement): void {
+  void element.play().catch((error: unknown) => {
+    // A única forma de ver o autoplay recusando áudio: o elemento fica parado sem evento nenhum.
+    if (error instanceof DOMException && error.name === "NotAllowedError") {
+      logToMain("warn", "som-playback-blocked", { id });
+    }
+    // Os demais: `play()` rejeita quando o elemento sai do documento no meio da promessa; nada a fazer.
+  });
+}
+
 /**
  * (Re)aponta o elemento para a stream e o põe para tocar. Serve tanto para o primeiro vínculo
  * quanto para a reanexação do vigia — passar por `null` força o elemento a recarregar em vez de
  * ignorar a atribuição do mesmo objeto.
+ *
+ * Não mexe em `muted`: quem decide o Som é o Palco, e a reanexação do vigia não pode religar ninguém.
  */
 function attach(surface: Surface, stream: MediaStream): void {
   surface.stream = stream;
@@ -145,9 +158,7 @@ function attach(surface: Surface, stream: MediaStream): void {
   // Descarregar a mídia descarta o callback de quadro pendente; sem re-registrar, o vigia veria
   // um elemento eternamente sem quadros logo depois de consertá-lo.
   watchFrames(surface);
-  void surface.element.play().catch(() => {
-    // Idem: desmontagem no meio da promessa.
-  });
+  playSurface(surface.id, surface.element);
 }
 
 /**

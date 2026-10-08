@@ -1,156 +1,201 @@
 <div align="center">
 
-# Telinha
+# 📺 Telinha
 
-**Compartilhamento de tela entre amigos, direto, sem conta e sem senha.**
+**Compartilhamento de tela direto entre amigos: sem login, sem senha e sem intermediários.**
 
-Você abre, gera um código de seis dígitos, manda no chat. Quem chegar, você aprova.
-Acabou a Sessão, acabou tudo — não sobra nada em servidor nenhum.
+Abra o app, gere um código e envie no chat. Você aprova quem entra.  
+Encerrou a sessão, sumiu tudo — sem rastros em nenhum servidor.
 
-</div>
+[![Download Windows](https://img.shields.io/github/v/release/hmathsan/scrn-broadcast?label=Download%20Windows&logo=windows&style=for-the-badge&color=blue)](https://github.com/hmathsan/scrn-broadcast/releases/latest)
+[![Licença: AGPL v3](https://img.shields.io/badge/licen%C3%A7a-AGPL_v3-blue?style=for-the-badge)](LICENSE)
+
+<br/>
 
 ![O Telinha em uso](docs/assets/telinha.gif)
 
-## Por que isto existe
+</div>
 
-O Discord bloqueou o compartilhamento de tela no Brasil, e de repente a coisa mais simples do
-mundo — mostrar a sua tela para quatro amigos — virou um problema.
+## 💡 Por que o Telinha existe?
 
-As alternativas pedem conta. Cadastro, e-mail, senha, às vezes cartão. Você cria mais um login
-para mostrar uma tela por vinte minutos, e esse login fica lá, num banco de dados que um dia
-vaza. Já vazou tantos. E boa parte delas ainda passa o seu vídeo por um servidor no meio do
-caminho, o que significa que a qualidade piora e alguém, em tese, poderia estar olhando.
+O Discord bloqueou o compartilhamento de tela no Brasil e, de repente, a coisa mais simples do mundo — mostrar a sua tela para alguns amigos — virou um problema.
 
-O Telinha faz uma coisa só e faz bem: **a sua tela, com qualidade, direto na máquina de quem
-está assistindo.** Sem conta, sem senha, sem histórico. O vídeo vai ponto a ponto entre vocês.
+As alternativas disponíveis pedem conta: cadastro, e-mail, confirmação e senha. Você acaba criando mais um login em um serviço qualquer que nem sabe se vai usar de novo, só para mostrar a tela por vinte minutos. Esse registro fica lá, parado em mais um banco de dados sujeito a vazamentos. Além disso, boa parte dessas ferramentas passa o seu vídeo por um servidor no meio do caminho, o que derruba a qualidade e ainda levanta dúvidas sobre quem pode estar assistindo.
 
-## Instalar
+O Telinha faz uma coisa só e faz bem: **a sua tela, com qualidade, direto na máquina de quem está assistindo.**
 
-Baixe o instalador da [última release](https://github.com/hmathsan/scrn-broadcast/releases/latest)
-e execute. Windows 10 ou 11.
+* **Sem conta, sem senha, sem histórico:** você não precisa de cadastro nenhum.
+* **100% P2P:** o vídeo vai direto de ponta a ponta entre vocês.
+* **Efêmero:** a sessão acaba e não sobra nenhum rastro.
 
-> **O Windows vai dizer "O Windows protegeu o seu computador".**
-> É esperado. O instalador não é assinado — um certificado custa algumas centenas de dólares por
-> ano, e este projeto é gratuito e não gera receita. Clique em **Mais informações** e depois em
-> **Executar assim mesmo**. O código-fonte inteiro está neste repositório, se você quiser
-> conferir antes.
+---
 
-Depois da primeira instalação, as atualizações são silenciosas: chegam sozinhas e valem no
-próximo início.
+## 💻 Instalação
 
-## Usar, em trinta segundos
+Compatível com **Windows 10 e 11**.
 
-1. Abra o Telinha e clique em **Criar Sessão**. Você recebe um código de seis dígitos, tipo
-   `K4M 9TX`.
-2. Mande o código para quem você quer chamar — WhatsApp, Discord, onde for.
-3. Cada pessoa abre o Telinha, digita o código e pede para entrar. **Você aprova, uma por uma.**
-4. Clique em **Transmitir** e escolha o que mostrar: um monitor inteiro ou a janela de um
-   programa só.
+1. Baixe o instalador na [página de versões mais recentes (Releases)](https://github.com/hmathsan/scrn-broadcast/releases/latest).
+2. Execute o arquivo baixado.
+3. Concluída a instalação, **as próximas atualizações serão automáticas**.
 
-Até **sete pessoas** por Sessão, e **duas transmitindo ao mesmo tempo** — dá para mostrar dois
-jogos lado a lado. Quem assiste escolhe entre ver uma tela grande com miniaturas embaixo, ou
-todas do mesmo tamanho numa grade.
+> [!NOTE]
+> **Aviso "O Windows protegeu o seu computador":**  
+> Esse alerta é esperado. A Microsoft cobra mais de US$ 150 por ano para emitir certificados que removem esse aviso, o que é inviável para um projeto gratuito e independente.  
+> 
+> Não há nada malicioso aqui. Para continuar:
+> 1. Clique em **Mais informações**.
+> 2. Clique em **Executar assim mesmo**.
+> 
+> *O código-fonte inteiro está aberto neste repositório caso você queira conferir antes de instalar.*
 
-Quando você, que criou a Sessão, sai, a Sessão acaba para todo mundo. É de propósito.
+
+
+## ⚡ Como usar em 30 segundos
+
+1. Abra o Telinha e clique em **Criar Sessão**. Um código de 6 dígitos (ex.: `K4M-9TX`) será gerado no topo da tela.
+2. Compartilhe o código com os participantes via WhatsApp, Discord ou onde preferir.
+3. Cada convidado abre o Telinha, insere o código e solicita entrada. **Você aprova cada participante individualmente.**
+4. Clique em **Transmitir** e selecione sua fonte: um monitor inteiro ou a janela de um aplicativo específico.
+
+#### Capacidade e layout:
+
+* **Até 7 pessoas por sessão**, com **até 2 transmissões simultâneas** (ideal para comparar dois jogos ou fluxos de trabalho lado a lado).
+* Quem assiste pode alternar livremente entre o **Modo Foco** (uma tela principal em destaque com miniaturas abaixo) ou o **Modo Grade** (todas as telas com o mesmo tamanho).
+* **Encerramento:** quando o criador da sala sai, a sessão se encerra para todos. O controle da sessão pertence sempre ao anfitrião.
 
 ![O Palco com uma transmissão](docs/assets/palco.png)
 
-## O que ele não faz
+---
 
-Vale dizer antes de você baixar:
+## 🛑 O que o Telinha não faz (ainda)
 
-- **Windows apenas.** macOS e Linux estão no roteiro, não no presente.
-- **Vídeo, sem áudio.** O som ainda vai pelo Discord, ou por onde vocês já conversam. É a
-  próxima coisa a ser feita.
-- **Sem chat, sem gravação, sem contas.** Não é esquecimento: é escopo. Chat vocês já têm.
-- **Sete pessoas, duas transmitindo.** Não é um número tímido — é o limite do desenho ponto a
-  ponto, onde cada máquina fala direto com todas as outras. Passar disso exigiria um servidor de
-  vídeo no meio, que é exatamente o que este projeto não quer ter.
+Para alinhar expectativas antes do download:
 
-## Privacidade, concretamente
+* **Exclusivo para Windows (por enquanto):** o suporte a macOS e Linux está em desenvolvimento. Acompanhe o [roadmap](#roadmap).
+* **Transmissão sem áudio:** atualmente compartilha apenas vídeo. O suporte a áudio do sistema/aplicação está [planejado](#roadmap).
+* **Sem chat integrado, gravação ou contas:** o foco do Telinha é exclusivamente o compartilhamento de tela leve e direto. Use seu app de comunicação habitual para conversar por voz ou texto, como o Discord.
+* **Limite rígido de 7 pessoas (2 transmitindo):** a arquitetura é 100% P2P direta via WebRTC mesh, sem servidor central intermediando o tráfego de mídia. Cada máquina transmite seus pacotes diretamente a todos os outros participantes. Aumentar esse limite multiplicaria o uso de banda e CPU, exigindo um servidor dedicado (SFU), o que vai contra a proposta de independência da ferramenta.
 
-- **O vídeo nunca passa por um servidor.** É WebRTC ponto a ponto: sai da sua máquina e chega na
-  de quem assiste.
-- **Não existe conta.** Nada para vazar, porque nada é guardado. O único segredo do sistema é o
-  código da Sessão, e ele morre junto com ela.
-- **O sinalizador** — o servidorzinho que apresenta os participantes uns aos outros no começo —
-  **não vê a sua tela.** Ele repassa mensagens de negociação e some quando a Sessão termina. Não
-  guarda histórico e não persiste nada.
-- A única coisa que os participantes veem uns dos outros é o endereço IP, o que é inerente a
-  qualquer conexão direta.
+## 🔒 Privacidade
 
-### Sobre o sinalizador oficial
+* **Vídeo 100% ponto a ponto:** o fluxo de vídeo sai diretamente do seu computador para o de quem assiste via WebRTC. Nenhum servidor intermediário armazena ou processa a imagem.
+* **Sem cadastro ou contas:** sem e-mail, senha ou banco de dados de usuários. Não há risco de vazamento de credenciais, pois nada é salvo. O código da sessão é efêmero e deixa de existir no instante em que a sala é encerrada.
+* **Servidor de sinalização cego e temporário:** o servidor de sinalização atua apenas como um "apresentador" inicial para conectar os participantes. Ele não enxerga a sua tela, não armazena logs de tráfego e encerra seu papel assim que a negociação P2P termina.
 
-O sinalizador que vem configurado no instalador roda na minha conta da Cloudflare, no plano
-gratuito, e é oferecido sem garantia nenhuma. Ele aguenta algumas centenas de Sessões por dia; se
-passar disso, para até o dia seguinte — não gera cobrança para ninguém, mas também não abre
-Sessão.
+> [!IMPORTANT]
+> **Visibilidade de IP em conexões diretas:**  
+> Como a conexão é feita diretamente entre dispositivos, o seu endereço IP fica visível para os outros participantes da sessão — exatamente como em qualquer protocolo P2P (como torrents ou chamadas diretas).
+> 
+> O Telinha parte do princípio de que você **só deve compartilhar o código de acesso com pessoas de sua total confiança**.
 
-Se você quiser garantia, **suba o seu**: [`apps/signaler`](apps/signaler) é um Cloudflare Worker
-que roda no plano gratuito. Por enquanto isso exige recompilar o app, porque o endereço do
-sinalizador é definido em tempo de build — deixar isso configurável está no roteiro.
+### 📡 Sobre o sinalizador oficial
 
-## Quando algo dá errado
+O servidor de sinalização padrão pré-configurado no instalador roda em uma conta pessoal da Cloudflare (plano gratuito) e é disponibilizado como cortesia, **sem garantias de disponibilidade**.
 
-**Uma borda amarela em volta da janela transmitida.**
-Não é bug e não sai. É o Windows avisando que a janela está sendo capturada; o Telinha usa a API
-que o Windows exige para capturar janelas de jogo corretamente, e ela vem com essa borda. Em
-alguns sistemas ela não aparece.
+* **Limites de uso:** a infraestrutura comporta algumas centenas de sessões diárias. Caso atinja a cota gratuita da Cloudflare, o serviço pausa até a virada do dia (nenhum custo é gerado, mas novas conexões não serão abertas).
+* **Quer independência ou estabilidade garantida?** Suba a sua própria instância:
+  * O código do sinalizador está disponível em [`apps/signaler`](apps/signaler) e pode ser hospedado em um Cloudflare Worker dentro do plano gratuito.
+  * *Observação:* no momento, usar um servidor próprio exige recompilar a aplicação, pois o endpoint é fixado em tempo de build. Tornar esse endereço configurável diretamente pela interface [está planejado no roadmap](#roadmap).
 
-**"O Windows protegeu o seu computador" na instalação.**
-Instalador não assinado. Mais informações → Executar assim mesmo. Veja a seção de instalação.
+## 🩺 Solução de Problemas (Troubleshooting)
 
-**A janela que escolhi aparece preta ou congelada.**
-Costuma ser jogo em tela cheia exclusiva. Mude o jogo para "janela sem bordas", ou transmita o
-monitor inteiro em vez da janela.
+Encontrou algum comportamento inesperado? Veja como resolver os cenários mais comuns:
 
-**A transmissão trava, fica pixelada ou embaçada.**
-Abra o diagnóstico no app e olhe o **encoder em uso**. Se estiver em software (algo como
-`OpenH264`), a sua placa de vídeo não está ajudando e o processador está codificando no braço —
-o resultado é exatamente esse. Se estiver em hardware e ainda assim ruim, o gargalo é a rede: o
-diagnóstico mostra a perda de pacotes.
+<details>
+  <summary><b>"O Windows protegeu o seu computador" durante a instalação</b></summary>
 
-Em placas antigas ou com driver problemático, a aceleração por hardware às vezes atrapalha mais
-do que ajuda — quadros verdes, artefatos, imagem congelada. Dá para desligá-la definindo a
-variável de ambiente `SCRN_BROADCAST_DISABLE_HW_ACCEL=1` antes de abrir o app; ela vale para os
-dois lados, quem transmite e quem assiste. Deixar a aceleração ligada é quase sempre melhor: sem
-ela, o processador faz todo o trabalho e o computador esquenta.
+  O instalador ainda não possui um certificado digital pago (a Microsoft cobra uma anuidade considerável para remover esse aviso).
+  
+  O código é totalmente aberto e seguro. Para prosseguir:
+  1. Clique em **Mais informações**.
+  2. Selecione **Executar assim mesmo**.
+</details>
 
-**"Atualize o aplicativo para entrar nesta Sessão".**
-Alguém está numa versão mais nova. Feche o Telinha e abra de novo — a atualização baixa sozinha e
-se aplica no início.
+<details>
+  <summary><b>A janela capturada fica preta ou congelada</b></summary>
 
-**Não conecta de jeito nenhum.**
-Algumas redes (principalmente internet móvel e certos provedores de fibra) não deixam duas
-máquinas se acharem diretamente, e a conexão precisa de um intermediário. O Telinha usa um, mas
-ele tem cota mensal. Se ela acabar, essas redes param de conectar até virar o mês. O diagnóstico
-mostra se a sua conexão está passando por esse caminho.
+  Isso geralmente ocorre com jogos ou programas rodando em **Tela Cheia Exclusiva (Exclusive Fullscreen)**.
+  
+  **Soluções:**
+  - Altere a configuração de vídeo do jogo para **Janela sem Bordas (Borderless Windowed)**.
+  - Ou opte por compartilhar a **tela inteira** em vez de selecionar apenas a janela da aplicação.
+</details>
 
-**A Sessão terminou sozinha, e ninguém sabe por quê.**
-O Telinha grava um log local do que aconteceu. Abra o diagnóstico e clique em **Abrir pasta de
-logs** — ou vá direto a `%APPDATA%\Telinha\logs`. O arquivo `main.log` tem as quedas de
-conexão com código e motivo, as falhas de ICE e os erros que o app não conseguiu mostrar na tela.
-Nada dele sai da sua máquina: quem manda o arquivo para alguém é você.
+<details>
+  <summary><b>Transmissão travando, pixelada ou com baixa qualidade</b></summary>
 
-Se nada disso resolveu, [abra uma issue](https://github.com/hmathsan/scrn-broadcast/issues/new/choose)
-e **anexe o diagnóstico exportado e o `main.log`** — sem eles, quase todo problema vira adivinhação.
+  Abra o painel de **Diagnóstico** dentro do app e verifique o **Encoder** em uso:
+  
+  - **Encoder em Software (ex.: `OpenH264`):** Sua placa de vídeo não está sendo usada; a CPU está fazendo todo o processamento de codificação.
+  - **Encoder em Hardware (ex.: `NVIDIA H.264 Encoder MFT`):** Se mesmo via GPU a imagem estiver ruim, o gargalo é a conexão. Confira o indicador de **perda de pacotes (packet loss)** no diagnóstico.
+  
+  > ⚠️ **Problemas visuais (telas verdes/artefatos)?**  
+  > Em GPUs mais antigas ou com drivers instáveis, a aceleração gráfica pode falhar. Você pode forçar a desativação da aceleração de hardware (válido para quem transmite e assiste) definindo a variável de ambiente:
+  > ```bash
+  > SCRN_BROADCAST_DISABLE_HW_ACCEL=1
+  > ```
+  > *Nota: Mantenha ativado se possível, pois desativar sobrecarregará o uso de CPU da máquina.*
+</details>
 
-## Roteiro
+<details>
+  <summary><b>"Atualize o aplicativo para entrar nesta Sessão"</b></summary>
 
-Em ordem aproximada de importância, sem prazo:
+  O anfitrião da sessão está utilizando uma versão mais recente do Telinha.
+  
+  **Como resolver:** Feche o aplicativo completamente e abra-o novamente. A atualização será baixada e aplicada automaticamente.
+</details>
 
-- **Áudio na transmissão.** Tela de jogo sem som é meia solução, e para muita gente é o que
-  decide entre usar e não usar.
-- **macOS e Linux.**
-- **Dizer na tela quando a conexão precisa de intermediário e ele não está disponível**, em vez
-  de simplesmente não conectar.
-- **Avisar que uma atualização chegou**, em vez de aplicá-la em silêncio.
-- **Ligar e desligar a aceleração por hardware pelo app**, sem variável de ambiente.
-- **Escolher o sinalizador dentro do app**, para quem sobe o seu não precisar recompilar.
-- **Instalador assinado**, se um dia o número de pessoas justificar o custo.
-- **Mais gente por Sessão** — em estudo, e honestamente difícil: como cada máquina fala direto
-  com todas as outras, o custo cresce depressa. Passar de sete exigiria um servidor de vídeo no
-  meio, que muda a natureza do projeto.
+<details>
+  <summary><b>Falha ao conectar à sessão (não conecta de jeito nenhum)</b></summary>
+
+  Algumas redes (como 4G/5G, CGNAT de provedores de fibra ou redes corporativas restritas) impedem conexões diretas via P2P.
+  
+  Nesses casos, a conexão depende de um servidor intermediário (*relay/TURN*). Como esse serviço possui uma **cota mensal gratuita limitada**, caso o limite tenha sido atingido, conexões indiretas ficarão indisponíveis temporariamente. Você pode checar no painel de **Diagnóstico** se a sua rota está tentando usar relay.
+</details>
+
+<details>
+  <summary><b>A sessão encerrou inesperadamente</b></summary>
+
+  O Telinha armazena relatórios locais de execução para depuração:
+  
+  1. No app, vá em **Diagnóstico** → **Abrir pasta de logs** (ou acesse diretamente pelo Windows: `%APPDATA%\Telinha\logs`).
+  2. O arquivo `main.log` registra quedas de conexão, códigos de erro e falhas de negociação de rede (ICE).
+  
+  🔒 *Privacidade: Nenhum log é enviado para a nuvem. Os dados ficam exclusivamente na sua máquina.*
+</details>
+
+---
+
+### 💬 Ainda precisa de ajuda?
+Se nenhuma das soluções acima resolveu o problema:
+1. Exporte os dados da tela de **Diagnóstico**.
+2. Colete o arquivo `main.log`.
+3. [abra uma nova issue](https://github.com/hmathsan/scrn-broadcast/issues/new/choose) descrevendo o ocorrido e anexe ambos os arquivos.
+
+## 🗺️ Roadmap
+
+> Itens organizados por ordem aproximada de prioridade (sem prazos rígidos).
+
+| Status | Funcionalidade | Descrição | Versão Prevista |
+| :---: | :--- | :--- | :---: |
+| ✅ | **Transmissão P2P** | Streaming direto de vídeo ponto a ponto, sem necessidade de servidor central. | `v1.0.0` |
+| ✅ | **Sessões sem autenticação** | Acesso rápido a salas apenas com código de convite, sem necessidade de login. | `v1.0.0` |
+| 🚧 | **Suporte a áudio** | Transmissão de áudio do sistema operacional ou de janelas específicas junto ao vídeo. | `v1.1.0` |
+| 🚧 | **Multiplataforma (macOS & Linux)** | Compatibilidade e empacotamento nativo para macOS e distribuições Linux. | `v1.2.0` |
+| 🚧 | **Indicador de conexão relay (TURN)** | Alerta visual explícito quando uma conexão direta P2P falhar (NAT restrito) e exigir intermediário. | `v1.x` |
+| 🚧 | **Notificações de atualização** | Alerta visual no app para novas versões disponíveis em vez de updates silenciosos. | `v1.x` |
+| 🚧 | **Alternar aceleração por hardware** | Opção nas configurações para ativar/desativar aceleração de GPU facilmente. | `v1.x` |
+| 💡 | **Servidor de sinalização customizável** | Possibilidade de configurar URLs de *signaling servers* privados diretamente pela interface. | `v2.x` |
+| 🔬 | **Múltiplos participantes por sessão** | *Em pesquisa:* Suporte a múltiplos pares/transmissões por sala (investigando viabilidade via topologia mesh vs. SFU). | `TBD` |
+
+<details>
+  <summary><b>Legenda de Status</b></summary>
+
+  - ✅ **Concluído:** Disponível na versão estável.
+  - 🚧 **Em desenvolvimento / Próximo:** Planejado ou em implementação ativa.
+  - 💡 **Backlog:** Ideia mapeada para versões futuras.
+  - 🔬 **Em pesquisa:** Estudo de viabilidade técnica.
+</details>
 
 ---
 

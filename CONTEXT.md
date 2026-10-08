@@ -32,6 +32,13 @@ _Avoid_: Viewer, receptor, ouvinte
 O que um Transmissor escolheu enviar: um monitor inteiro ou a janela de uma única aplicação.
 _Avoid_: Tela, captura, display, source
 
+**Som**:
+O áudio que acompanha uma Fonte: o do aplicativo, quando a Fonte é uma janela; o do sistema
+inteiro, quando é um monitor. Nunca inclui o som do próprio app — se não há como tirá-lo, a
+Fonte vai sem Som. É parte da Fonte, não uma transmissão à parte, e o Transmissor pode enviá-la
+sem ele.
+_Avoid_: Áudio do sistema, loopback, audio, trilha
+
 **Código de Sessão**:
 O segredo curto que um Participante usa para entrar em uma Sessão existente. Nasce com a Sessão
 e morre com ela. É a única credencial que existe — não há contas, senhas nem lista de amigos.
@@ -43,12 +50,31 @@ Participante". Nunca usado no sentido do Discord (que aqui é Sessão).
 
 **Anfitrião**:
 O Participante que criou a Sessão. É a autoridade sobre quem está dentro: aprova as entradas e
-detém a lista. Quando o Anfitrião sai, a Sessão deixa de existir.
+detém a lista. Quando o Anfitrião sai, a Sessão deixa de existir; quando cai, a Sessão o espera
+pela Retomada.
 _Avoid_: Dono, admin, moderador, owner
+
+**Sair**:
+Deixar a Sessão por decisão própria. É definitivo: voltar é entrar de novo, com o Código de Sessão
+e a aprovação do Anfitrião.
+_Avoid_: Desconectar, cair
+
+**Cair**:
+Perder a conexão com a Sessão sem ter decidido sair. Não tira ninguém da Sessão por si só — abre a
+Retomada.
+_Avoid_: Sair, desconectar, dropar
+
+**Retomada**:
+A volta de um Participante que caiu, dentro de um prazo, como a mesma pessoa de antes: sem pedir
+entrada de novo e sem que os demais a vejam sair e voltar. Passado o prazo sem volta, quem caiu
+saiu.
+_Avoid_: Reconexão (que é da conexão de mídia entre dois Participantes), reentrada, rejoin
 
 **Palco**:
 A área principal da janela, onde as Fontes dos Transmissores são exibidas. Tem dois modos, Foco
-e Grade. Estar "no Palco" é estar sendo exibido em tamanho grande.
+e Grade. Estar "no Palco" é estar sendo exibido em tamanho grande. Por padrão, o Palco também
+decide quem se ouve — no Foco, só o Som de quem está nele; na Grade, o de todos —, mas a escolha
+manual de quem assiste prevalece sobre isso.
 _Avoid_: Destaque, tela principal, spotlight
 
 **Foco**:

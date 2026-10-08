@@ -1,4 +1,6 @@
-import { buildEncodingParameters, MAX_BITRATE_BPS } from "../../../shared/media/bitrate.js";
+import { buildEncodingParameters, MAX_BITRATE_BPS, MAX_SOM_BITRATE_BPS } from "../../../shared/media/bitrate.js";
+import { withOpusStereo } from "../../../shared/media/opusStereo.js";
+import { SomSilenceTracker } from "../../../shared/media/somSilence.js";
 import { preferH264 } from "../../../shared/media/codecPreference.js";
 import { DiagnosticsSampler, didFallBackToSoftwareEncoder, type ConnectionDiagnosticsSnapshot } from "../../../shared/media/diagnostics.js";
 import {
@@ -88,6 +90,8 @@ export class MeshManager {
   private readonly connections = new Map<string, ManagedConnection>();
   private readonly pendingCandidates = new Map<string, IceCandidateLike[]>();
   private readonly sampler = new DiagnosticsSampler();
+  /** Uma só: a track de áudio é a mesma em todas as conexões de saída. */
+  private readonly somSilence = new SomSilenceTracker();
   private diagnosticsTimer: ReturnType<typeof setInterval> | null = null;
 
   constructor(private readonly handlers: MeshManagerHandlers) {
@@ -108,6 +112,7 @@ export class MeshManager {
 
   startTransmitting(stream: MediaStream, espectadorIds: readonly string[]): void {
     this.localStream = stream;
+    this.somSilence.reset();
     for (const espectadorId of espectadorIds) {
       if (espectadorId === this.myId) continue;
       this.createOutgoingConnection(espectadorId);
@@ -121,6 +126,7 @@ export class MeshManager {
     }
     for (const track of this.localStream?.getTracks() ?? []) track.stop();
     this.localStream = null;
+    this.somSilence.reset();
   }
 
   handleParticipanteJoined(participanteId: string): void {
@@ -190,7 +196,9 @@ export class MeshManager {
       await entry.pc.setRemoteDescription(payload.sdp);
       await this.drainPendingCandidates(key, entry);
       const answer = await entry.pc.createAnswer();
-      await entry.pc.setLocalDescription(answer);
+      // É a resposta que decide o estéreo: o encoder Opus do Transmissor só sai de mono se a
+      // descrição remota dele pedir `stereo=1` (spec 0009, "Estéreo").
+      await entry.pc.setLocalDescription({ type: answer.type, sdp: withOpusStereo(answer.sdp ?? "", MAX_SOM_BITRATE_BPS) });
       if (entry.pc.localDescription) {
         this.handlers.sendSignal(payload.transmissorId, {
           kind: "answer",
@@ -252,11 +260,14 @@ export class MeshManager {
 
     for (const track of this.localStream.getTracks()) {
       const transceiver = pc.addTransceiver(track, { direction: "sendonly", streams: [this.localStream] });
-      this.applyPreferredCodecs(transceiver);
+      // `applyPreferredCodecs` usa as capacidades de vídeo e lançaria num transceiver de áudio. O
+      // Som não tem preferência de codec: é Opus, e o estéreo vai no SDP.
+      const isVideo = track.kind === "video";
+      if (isVideo) this.applyPreferredCodecs(transceiver);
 
       const sender = transceiver.sender;
       const params = sender.getParameters();
-      params.encodings = buildEncodingParameters(MAX_BITRATE_BPS);
+      params.encodings = buildEncodingParameters(isVideo ? MAX_BITRATE_BPS : MAX_SOM_BITRATE_BPS);
       void sender.setParameters(params).catch(() => {
         // Alguns motores exigem uma negociação completa antes de aceitar setParameters; o teto
         // de bitrate não é crítico o bastante para bloquear a conexão nesse caso raro.
@@ -294,7 +305,8 @@ export class MeshManager {
 
   private async negotiate(entry: ManagedConnection, options?: RTCOfferOptions): Promise<void> {
     const offer = await entry.pc.createOffer(options);
-    await entry.pc.setLocalDescription(offer);
+    // Não é a oferta que decide o estéreo (é a resposta), mas os dois lados declaram a mesma coisa.
+    await entry.pc.setLocalDescription({ type: offer.type, sdp: withOpusStereo(offer.sdp ?? "", MAX_SOM_BITRATE_BPS) });
     if (!entry.pc.localDescription) return;
     this.handlers.sendSignal(entry.espectadorId, {
       kind: "offer",
@@ -363,10 +375,14 @@ export class MeshManager {
     };
 
     if (role === "espectador") {
+      // Com Som, dispara uma vez por track, com a mesma stream. Só o fim do vídeo encerra a Fonte:
+      // o Som acabar não é a Fonte acabar.
       pc.ontrack = (event) => {
         const stream = event.streams[0] ?? new MediaStream([event.track]);
         this.handlers.onRemoteStream(transmissorId, stream);
-        event.track.addEventListener("ended", () => this.handlers.onRemoteStreamEnded(transmissorId));
+        if (event.track.kind === "video") {
+          event.track.addEventListener("ended", () => this.handlers.onRemoteStreamEnded(transmissorId));
+        }
       };
     }
   }
@@ -550,9 +566,25 @@ export class MeshManager {
     }
 
     this.handlers.onDiagnostics(snapshots);
+    this.observeSomSilence(snapshots, now);
     for (const { key, entry, action, trigger, msUnhealthy } of pending) {
       if (this.connections.get(key) !== entry) continue;
       this.runRecovery(key, entry, action, trigger, msUnhealthy, now);
+    }
+  }
+
+  /**
+   * Silêncio prolongado na captura (ADR 0011): só log, nunca aviso. Lê a primeira conexão de saída
+   * porque a track é a mesma em todas; o watchdog de mídia continua olhando só o vídeo.
+   */
+  private observeSomSilence(snapshots: readonly ConnectionDiagnostics[], now: number): void {
+    const outgoing = snapshots.find((s) => s.role === "transmissor");
+    if (!outgoing) return;
+    const transition = this.somSilence.observe(outgoing.somAudioLevel, now);
+    if (transition === "went-silent") {
+      logToMain("info", "som-capture-silent", { silentForMs: this.somSilence.silentForMs(now) });
+    } else if (transition === "sound-returned") {
+      logToMain("info", "som-capture-sound-returned");
     }
   }
 }

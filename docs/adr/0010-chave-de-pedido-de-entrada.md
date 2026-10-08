@@ -1,5 +1,8 @@
 # Uma chave de pedido de entrada, que não é identidade
 
+> Revisada em parte pela [ADR 0012](./0012-retomada-com-a-sessao-no-storage.md): na Retomada, o
+> `joinNonce` passa a ser a prova de quem volta.
+
 O `join` e o `create-sessao` carregam um `joinNonce`: um UUID sorteado uma vez por processo do app
 e reenviado em toda tentativa de entrada, inclusive nas reconexões com backoff. Ao receber um
 `join`, o sinalizador remove qualquer Participante que já esteja na Sessão com o mesmo `joinNonce`

@@ -69,7 +69,7 @@ export function FontePicker() {
       <div className="dialog dialog-wide" role="dialog" aria-modal="true" aria-label="Escolher Fonte">
         <div className="flex flex-none flex-col gap-1">
           <h2 className="dialog-title">Escolher Fonte</h2>
-          <p className="dialog-subtitle">O áudio do sistema não é compartilhado.</p>
+          <p className="dialog-subtitle">Janelas levam o Som do aplicativo; monitores, o do sistema.</p>
         </div>
 
         {/* Monitores e Janelas — o vocabulário do CONTEXT.md, não "Aplicativos / Tela inteira". */}

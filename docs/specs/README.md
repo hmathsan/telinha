@@ -4,7 +4,7 @@ Este projeto é desenvolvido a partir destas specs. Elas dizem **o que construir
 [ADRs](../adr/) dizem **por quê**, e o [CONTEXT.md](../../CONTEXT.md) define o vocabulário.
 
 Leia o `CONTEXT.md` antes de qualquer spec. Os termos **Sessão, Participante, Anfitrião,
-Transmissor, Espectador, Fonte, Código de Sessão, Palco** têm significado exato e são usados
+Transmissor, Espectador, Fonte, Som, Código de Sessão, Palco** têm significado exato e são usados
 como identificadores no código.
 
 ## Specs
@@ -22,6 +22,12 @@ como identificadores no código.
   estados. A fundação que a 0008 monta em cima.
 - [0008 — Telas](./0008-telas.md): Entrada, Sessão, seletor de Fonte e diagnóstico redesenhados.
   O comportamento continua sendo o da 0004.
+- [0009 — Som](./0009-som.md): captura do Som do aplicativo ou do sistema, estéreo na malha,
+  quem se ouve no Palco, diagnóstico e log. **Termina num portão manual antes da 0010.**
+- [0010 — Controles de Som](./0010-controles-de-som.md): alternador e aviso no seletor, silenciar
+  pela barra, mudo e volume por Transmissor, "Som segue o Palco". Sai na mesma release da 0009.
+- [0011 — Retomada](./0011-retomada.md): quem cai volta à Sessão como a mesma pessoa, Anfitrião
+  incluído. Revisa trechos da 0001, 0002 e 0003; protocolo vai para a versão 2.
 
 ## Invariantes
 

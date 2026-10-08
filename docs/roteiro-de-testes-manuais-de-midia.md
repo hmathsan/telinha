@@ -188,6 +188,144 @@ que o defeito original apareceu. Ao final, exporte o diagnóstico.
 - **O que observar:** a Sessão termina para todo mundo — as demais instâncias voltam para a tela
   de Entrada ou mostram que a Sessão acabou, não ficam penduradas esperando.
 
+## 5. Som
+
+Valida a [spec 0009](./specs/0009-som.md) e a [ADR 0011](./adr/0011-som-do-aplicativo-pelo-chromium.md).
+Roda a cada troca de versão do Electron: o Som depende de um valor não documentado e quebra sem
+erro. Todos os eventos citados estão no `main.log` (Diagnóstico → "Abrir pasta de logs"); os do
+renderer aparecem com o prefixo `[renderer]`.
+
+**Portão.** Os casos 3 e 7 são registrados na ADR 0011 — o 6 ficou parado com o Windows 10 —,
+trocando "Validação pendente" pelo que foi observado e quando. Se contrariarem a ADR, ela é
+revista antes de a spec 0010 começar.
+
+**1. Janela com Som (Windows 11).** Transmita a janela de um player tocando áudio enquanto outro app
+toca outra coisa ao mesmo tempo.
+
+- **O que observar:** o Espectador ouve só a janela transmitida. No log do Transmissor,
+  `som-capture-requested { mode: 'applicationLoopback' }` com `pid` não nulo, seguido de
+  `som-capture-started` com `echoCancellation`, `noiseSuppression` e `autoGainControl` em `false`
+  nas `settings`.
+- **Se falhar:** `som-capture-unavailable { reason: 'capture-failed' }` com a mensagem é o Chromium
+  recusando a string `applicationLoopback:<pid>`. `reason: 'pid-not-found'` com
+  `window-process-lookup-failed` antes é o `koffi`. `som-processing-not-disabled` é qualidade, não
+  invariante: a track segue, mas o som sai destruído. O outro app vazando é a árvore de processos
+  errada — anote o `pid` e confira no Gerenciador de Tarefas.
+
+**2. Estéreo.** Transmita a janela de um vídeo de teste de canal esquerdo e direito e ouça de fone no
+Espectador.
+
+- **O que observar:** o esquerdo sai só no ouvido esquerdo, e o direito só no direito.
+- **Se falhar:** saindo nos dois ouvidos, o encoder ficou mono. Confirme que os dois lados estão na
+  versão nova (um Espectador antigo não aplica o `withOpusStereo` e recebe mono) e que a resposta
+  dele leva `stereo=1` no `a=fmtp` do Opus (`shared/media/opusStereo.ts`).
+
+**3. Monitor sem o próprio Telinha. Duas máquinas.** Pendente — veja o TODO no fim. Na mesma
+máquina não serve: a instância B é outro processo, e o som dela entra legitimamente no Som do
+sistema de A. A e B transmitem monitor, e A põe B no Palco, de modo que o Som de B toca na máquina
+de A.
+
+- **O que observar:** B não ouve o próprio Som voltando pela transmissão de A. No log de A,
+  `som-capture-requested { mode: 'loopback' }` e `som-capture-started` com `restrictOwnAudio: true`
+  nas `settings`.
+- **Se falhar:** o eco em B com `restrictOwnAudio: true` é o Chromium remixando outro `WebContents`
+  — confira se `disable-features=RestrictOwnAudioAddChromiumBack` ainda é anexada
+  (`main/somFlags.ts`). `som-capture-unavailable { reason: 'own-audio-not-excluded' }` significa que
+  a defesa funcionou, e a Fonte foi sem Som.
+
+**4. Janela do próprio Telinha.** Numa instância, transmita a janela dela mesma.
+
+- **O que observar:** vai sem Som, com `som-capture-requested { reason: 'own-app' }` e
+  `som-capture-unavailable { reason: 'own-app' }`. O Espectador não recebe track de áudio (a coluna
+  Som kbps fica em `—`).
+- **Se falhar:** `mode: 'applicationLoopback'` com o `pid` igual ao do próprio processo é a regra de
+  `decideSomCapture` quebrada. A janela de **outra** instância leva Som, e isso é correto: é outro
+  processo.
+
+**5. Windows 10, sem válvula.** _Parado: o Windows 10 saiu do suporte (TODO no fim)._ Transmita uma
+janela e um monitor numa máquina com Windows 10.
+
+- **O que observar:** as duas Fontes vão sem Som, com `som-capture-requested { reason: 'windows-10' }`
+  e `windowsBuild` abaixo de 22000. Nenhuma track de áudio chega ao Espectador.
+- **Se falhar:** `windowsBuild: 0` é `os.release()` ilegível. Uma track de áudio aqui viola a
+  invariante: o Chromium do Windows 10 descarta o `restrictOwnAudio` em silêncio.
+
+**6. Windows 10, com `SCRN_BROADCAST_FORCE_SOM=1`.** _Parado, pelo mesmo motivo do caso 5._ Repita 1
+e 3 com a válvula:
+
+```powershell
+$env:SCRN_BROADCAST_FORCE_SOM = '1'; npx electron out/main/index.js --user-data-dir=$env:TEMP\scrn-broadcast-p1
+```
+
+- **O que observar e registrar na ADR 0011:** se há Som; se o Discord ou outro app vaza na janela; e
+  se o som do Telinha vaza no monitor. O log mostra `forced: true`, e o monitor pede
+  `mode: 'loopbackWithoutChrome'`.
+- **Se falhar:** não é falha, é o dado. Se as capturas funcionarem sem vazamento, a mudança é
+  `MIN_WINDOWS_BUILD_FOR_SOM` e a ADR 0011; a válvula continua como está.
+
+**7. App da Loja.** Transmita a janela de um app da Microsoft Store tocando áudio por mais de um
+minuto.
+
+- **O que observar e registrar na ADR 0011:** se chega Som ou silêncio ao Espectador, e se
+  `som-capture-silent { silentForMs }` aparece no log do Transmissor depois de 60 s.
+- **Se falhar:** silêncio sem `som-capture-silent` significa que o `media-source` não reporta
+  `audioLevel` (coluna Som kbps baixa e constante) — o rastreador nunca vê nível nenhum.
+
+**8. Palco.** Com dois Transmissores tocando Sons diferentes, num Espectador:
+
+- **O que observar:**
+  - no Foco, só se ouve quem está no Palco;
+  - promover a miniatura troca o Som;
+  - na Grade, ouvem-se os dois;
+  - a própria Fonte de quem transmite nunca toca na máquina dele, nem no Palco nem na Grade.
+- **Se falhar:** `som-playback-blocked { id }` é o autoplay recusando áudio. Sem ele, a regra está em
+  `shared/somSelection.ts`, e quem a aplica é o efeito da `SessaoScreen`.
+
+**9. Versão antiga.** Um Espectador com o instalador anterior entra numa Sessão em que um Transmissor
+na versão nova transmite com Som.
+
+- **O que observar:** ele vê a Fonte, não quebra e não ouve.
+- **Se falhar:** `mesh-signal-failed` no log do Transmissor ou do Espectador antigo é a oferta com
+  áudio sendo recusada. A Fonte sumindo quando o Som acaba é o `ended` da track de áudio encerrando a
+  Fonte no cliente antigo.
+
+**10. Custo.** Com 6 Espectadores, abra o diagnóstico do Transmissor.
+
+- **O que observar:** a coluna Som kbps fica perto de 128 em cada conexão. Anote a CPU do processo do
+  Transmissor no Gerenciador de Tarefas com e sem Som (transmitir a janela de um app mudo conta como
+  "sem"). A ADR 0002 contabiliza +0,77 Mbps; se a CPU passar de 10% de um núcleo, anote na ADR 0011.
+- **Se falhar:** Som kbps muito acima de 128 é o teto de `MAX_SOM_BITRATE_BPS` não aplicado. Um
+  `mesh-ice-recovery { trigger: 'media' }` com Som e vídeo fluindo é regressão: o watchdog deveria
+  olhar só o vídeo.
+
+**11. Empacotado.** No app instalado, transmita uma janela de outro app.
+
+- **O que observar:** `som-capture-requested` traz `pid` não nulo. Isso prova que o `koffi` carregou
+  de dentro do asar.
+- **Se falhar:** `window-process-lookup-failed { message }` antes dele. Acrescente
+  `asarUnpack: ["**/node_modules/koffi/**"]` ao `electron-builder.yml` (e, se a mensagem citar o
+  pacote da plataforma, também `**/node_modules/@koromix/**`).
+
+## TODO — validações pendentes
+
+O que ainda não foi observado em máquina nenhuma, para quem tiver o cenário rodar e riscar daqui.
+
+**Precisam de duas máquinas.** Uma instância por máquina, não duas na mesma: o loopback não tem NAT
+para remapear, e o processo vizinho entra legitimamente no Som do sistema.
+
+- [ ] Toda a seção **4. Reconexão** — já marcada lá.
+- [ ] **5. Som, caso 3 (Monitor sem o próprio Telinha).** É o caso que prova a invariante do Som para
+  monitores: B não pode ouvir o próprio Som voltando pela transmissão de A. Faz parte do **portão**
+  da [spec 0009](./specs/0009-som.md) e vai para a
+  [ADR 0011](./adr/0011-som-do-aplicativo-pelo-chromium.md).
+- [ ] **5. Som, caso 9 (Versão antiga)** e **caso 10 (Custo)** rodam na mesma máquina, mas com várias
+  instâncias concentrando encodes numa GPU só — confirme num par de máquinas antes de tratar número
+  ruim como defeito (advertência do topo).
+
+**Windows 10 está fora por enquanto.** Os casos **5** e **6** da seção "5. Som" ficam parados: o
+Windows 10 saiu do suporte, e o código já manda a Fonte sem Som abaixo do build 22000. A válvula
+`SCRN_BROADCAST_FORCE_SOM` continua existindo para quem quiser medir isso no futuro.
+
 ## Ao final
 
 Se algum passo falhar, primeiro pergunte se é a máquina compartilhando GPU entre instâncias

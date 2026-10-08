@@ -1,4 +1,5 @@
 import type { AppToSignalerMessage, SignalerToAppMessage } from "@scrn-broadcast/protocol";
+import type { SomCaptureDecision } from "./media/somCapture.js";
 
 /**
  * Nomes de canal IPC entre `main` e `renderer`. O WebSocket de sinalização vive no processo
@@ -20,7 +21,15 @@ export const IPC_CHANNELS = {
   pickerSources: "picker:sources",
   pickerChoose: "picker:choose",
   pickerCancel: "picker:cancel",
+  somLastCapture: "som:last-capture",
+  somRetryWithoutSom: "som:retry-without-som",
 } as const;
+
+/** O que o processo principal decidiu sobre o Som na última escolha do seletor (spec 0009). */
+export interface SomCaptureReport {
+  readonly fonteKind: "screen" | "window";
+  readonly decision: SomCaptureDecision;
+}
 
 /**
  * Uma Fonte candidata no seletor (main process, via `desktopCapturer.getSources`). A miniatura
@@ -88,4 +97,12 @@ export interface ScrnBroadcastApi {
   exportDiagnostics(request: DiagnosticsExportRequest): Promise<DiagnosticsExportResult>;
   openLogsFolder(): void;
   log(entry: LogEntry): void;
+  /** `{ fonteKind, decision }` da última escolha do seletor, ou `null` se não houve uma com Som pedido. */
+  getLastSomCapture(): Promise<SomCaptureReport | null>;
+  /**
+   * Arma um reenvio de uso único, válido por 10 s: o próximo `getDisplayMedia` recebe a mesma Fonte
+   * só com vídeo, sem abrir o seletor. `false` quando a última escolha não tinha áudio a tirar — em
+   * geral, porque a pessoa cancelou o seletor.
+   */
+  retryCaptureWithoutSom(): Promise<boolean>;
 }

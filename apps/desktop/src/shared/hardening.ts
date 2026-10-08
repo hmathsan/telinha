@@ -1,6 +1,6 @@
 /**
- * Duas decisões de endurecimento do app empacotado, isoladas aqui porque são regras — não
- * chamadas do Electron — e regras se testam sem abrir janela.
+ * As válvulas de ambiente do app empacotado, isoladas aqui porque são regras — não chamadas do
+ * Electron — e regras se testam sem abrir janela.
  */
 
 /** Chave da válvula do DevTools. Ver `devToolsAllowed`. */
@@ -8,6 +8,19 @@ export const DEVTOOLS_ENV_VAR = "SCRN_BROADCAST_DEVTOOLS";
 
 /** Chave que desliga a aceleração por hardware de vídeo, nos dois sentidos. */
 export const DISABLE_HW_ACCEL_ENV_VAR = "SCRN_BROADCAST_DISABLE_HW_ACCEL";
+
+/** Chave que libera o Som abaixo do Windows 11. Ver `somForced`. */
+export const SOM_FORCE_ENV_VAR = "SCRN_BROADCAST_FORCE_SOM";
+
+/**
+ * Libera a captura de Som no Windows 10 (spec 0009, "A válvula para testar o Windows 10"). Existe
+ * para o roteiro manual descobrir, sem recompilar, se as capturas funcionam lá — não é recurso para
+ * usuário e não aparece no README. Não libera a janela do próprio app: essa é a invariante do Som,
+ * e `decideSomCapture` a mantém com ou sem a válvula.
+ */
+export function somForced(env: Record<string, string | undefined>): boolean {
+  return env[SOM_FORCE_ENV_VAR] === "1";
+}
 
 /**
  * DevTools existe em desenvolvimento e some no app instalado. Não é fronteira de segurança:

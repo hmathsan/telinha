@@ -9,8 +9,8 @@ que aparece no código. Veja a
 ## Onde está o quê
 
 - [CONTEXT.md](./CONTEXT.md) — o vocabulário. **Leia antes de escrever qualquer código.** Os
-  termos Sessão, Participante, Anfitrião, Transmissor, Espectador, Fonte, Código de Sessão,
-  Palco, Foco e Grade têm significado exato e aparecem como identificadores no código.
+  termos Sessão, Participante, Anfitrião, Transmissor, Espectador, Fonte, Som, Código de
+  Sessão, Palco, Foco e Grade têm significado exato e aparecem como identificadores no código.
 - [docs/specs/README.md](./docs/specs/README.md) — o que construir, spec por spec, com os
   critérios de pronto. É o ponto de entrada de qualquer tarefa de implementação.
 - [docs/adr/](./docs/adr/) — por que as coisas são como são. Consulte antes de propor mudar
@@ -18,7 +18,7 @@ que aparece no código. Veja a
 - [README.md](./README.md) — o que o usuário final lê. Se um comportamento descrito lá mudar, ele
   muda junto, e o `README.en.md` é tradução integral dele.
 
-## Duas regras que se violam por acidente
+## Três regras que se violam por acidente
 
 **A lógica de Sessão fica fora do React.** Roster, admissão, ocupação do Palco e handshake vivem
 em `packages/protocol`, em Node puro, sem importar Electron, React ou WebRTC. É isso que permite
@@ -29,6 +29,13 @@ componente destrói a capacidade de teste do projeto inteiro.
 **Termos do domínio em português nos identificadores**, sem acento: `Sessao`, `Anfitriao`,
 `Transmissor`, `Espectador`, `Palco`, `Fonte`, `codigoDeSessao`. Tudo o mais em inglês:
 `connect`, `retry`, `encoder`, `stats`.
+
+**O log nasce no mesmo commit que o caminho que pode falhar em silêncio.** Fallback, degradação,
+recuperação, API não documentada, qualquer decisão que muda o que chega ao outro lado: cada uma
+escreve um evento no log local — `logToMain(nível, "evento-em-kebab-case", { campos })` no renderer,
+`log` no principal — com campos que respondem o quê, onde e por quê sem cruzar com outro arquivo.
+A malha saiu sem isso, e as primeiras quedas reais foram impossíveis de diagnosticar (spec 0003,
+"Log local").
 
 ## Como isto sai para o mundo
 

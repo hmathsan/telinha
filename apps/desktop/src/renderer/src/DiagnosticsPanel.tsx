@@ -7,6 +7,11 @@ function formatMbps(bps: number | null): string {
   return (bps / 1_000_000).toFixed(2);
 }
 
+function formatKbps(bps: number | null): string {
+  if (bps === null) return "—";
+  return String(Math.round(bps / 1000));
+}
+
 function formatRtt(ms: number | null): string {
   return ms === null ? "—" : `${ms} ms`;
 }
@@ -87,6 +92,8 @@ export function DiagnosticsPanel(props: DiagnosticsPanelProps) {
               <th>Mbps</th>
               <th>fps</th>
               <th>Perda</th>
+              <th>Som kbps</th>
+              <th>Som perda</th>
               <th>RTT</th>
               <th>Encoder</th>
               <th>Limitação</th>
@@ -104,6 +111,8 @@ export function DiagnosticsPanel(props: DiagnosticsPanelProps) {
                   <td>{formatMbps(enviando ? d.outboundBitrateBps : d.inboundBitrateBps)}</td>
                   <td>{d.framesPerSecond ?? "—"}</td>
                   <td>{d.packetsLost ?? "—"}</td>
+                  <td>{formatKbps(enviando ? d.somOutboundBitrateBps : d.somInboundBitrateBps)}</td>
+                  <td>{d.somPacketsLost ?? "—"}</td>
                   <td>{formatRtt(d.roundTripTimeMs)}</td>
                   <td>{d.encoderImplementation ?? "—"}</td>
                   <td>{d.qualityLimitationReason ?? "—"}</td>
