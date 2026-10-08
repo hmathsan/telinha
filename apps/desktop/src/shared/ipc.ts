@@ -23,6 +23,7 @@ export const IPC_CHANNELS = {
   pickerCancel: "picker:cancel",
   somLastCapture: "som:last-capture",
   somRetryWithoutSom: "som:retry-without-som",
+  somSupport: "som:support",
 } as const;
 
 /** O que o processo principal decidiu sobre o Som na última escolha do seletor (spec 0009). */
@@ -47,8 +48,19 @@ export interface PickerApi {
   /** O processo principal abre e fecha o modal: quem pede a Fonte é `getDisplayMedia`, não a UI. */
   onOpenChange(callback: (open: boolean) => void): () => void;
   onSources(callback: (sources: readonly FontePickerItem[]) => void): () => void;
-  choose(sourceId: string): void;
+  /** `som: false` é o alternador "Transmitir com Som" desligado (spec 0010) — vira o motivo `som-off`. */
+  choose(sourceId: string, options: PickerChooseOptions): void;
   cancel(): void;
+}
+
+export interface PickerChooseOptions {
+  readonly som: boolean;
+}
+
+/** Se há Som possível para cada tipo de Fonte nesta máquina (spec 0010, "Seletor de Fonte"). */
+export interface SomSupport {
+  readonly window: boolean;
+  readonly screen: boolean;
 }
 
 export type ConnectAction =
@@ -105,4 +117,5 @@ export interface ScrnBroadcastApi {
    * geral, porque a pessoa cancelou o seletor.
    */
   retryCaptureWithoutSom(): Promise<boolean>;
+  getSomSupport(): Promise<SomSupport>;
 }

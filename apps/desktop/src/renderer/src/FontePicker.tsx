@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import type { FontePickerItem } from "../../shared/ipc.js";
-import { IconAppWindow, IconMonitor } from "./components/icons/index.js";
+import type { FontePickerItem, SomSupport } from "../../shared/ipc.js";
+import { IconAppWindow, IconMonitor, IconWarningCircle } from "./components/icons/index.js";
 
 type Aba = "monitores" | "janelas";
 
@@ -38,13 +38,19 @@ export function FontePicker() {
   const [open, setOpen] = useState(false);
   const [sources, setSources] = useState<readonly FontePickerItem[]>([]);
   const [aba, setAba] = useState<Aba>("monitores");
+  /** "Transmitir com Som": ligado a cada abertura, porque é uma escolha por transmissão (spec 0010). */
+  const [somLigado, setSomLigado] = useState(true);
+  const [somSupport, setSomSupport] = useState<SomSupport | null>(null);
 
   useEffect(
     () =>
       window.picker.onOpenChange((isOpen) => {
         setOpen(isOpen);
-        if (isOpen) setAba("monitores");
-        else setSources([]);
+        if (isOpen) {
+          setAba("monitores");
+          setSomLigado(true);
+          void window.scrnBroadcast.getSomSupport().then(setSomSupport);
+        } else setSources([]);
       }),
     [],
   );
@@ -64,12 +70,14 @@ export function FontePicker() {
 
   if (!open) return null;
 
+  // Enquanto a resposta não chega, o alternador não promete o que pode não haver.
+  const somPossivel = somSupport !== null && (aba === "monitores" ? somSupport.screen : somSupport.window);
+
   return (
     <div className="dialog-backdrop" role="presentation">
       <div className="dialog dialog-wide" role="dialog" aria-modal="true" aria-label="Escolher Fonte">
         <div className="flex flex-none flex-col gap-1">
           <h2 className="dialog-title">Escolher Fonte</h2>
-          <p className="dialog-subtitle">Janelas levam o Som do aplicativo; monitores, o do sistema.</p>
         </div>
 
         {/* Monitores e Janelas — o vocabulário do CONTEXT.md, não "Aplicativos / Tela inteira". */}
@@ -82,8 +90,48 @@ export function FontePicker() {
           </button>
         </div>
 
+        <div className="flex flex-none flex-col gap-3">
+          {/* A linha de apoio só existe no Windows 10, onde o alternador fica desabilitado. */}
+          <div className="flex items-start gap-3">
+            <button
+              type="button"
+              role="switch"
+              className="switch"
+              id="transmitir-com-som"
+              aria-checked={somLigado && somPossivel}
+              aria-describedby={somSupport !== null && !somPossivel ? "som-exige-windows-11" : undefined}
+              disabled={!somPossivel}
+              onClick={() => setSomLigado((v) => !v)}
+            />
+            <span className="flex flex-col gap-1">
+              <label htmlFor="transmitir-com-som" className="text-md">
+                Transmitir com Som
+              </label>
+              {somSupport !== null && !somPossivel && (
+                <span id="som-exige-windows-11" className="field-hint">
+                  Som exige Windows 11
+                </span>
+              )}
+            </span>
+          </div>
+          {aba === "monitores" && somLigado && somPossivel && (
+            <p className="faixa-warn py-2" role="note">
+              <IconWarningCircle className="faixa-warn-icon" />
+              <span>
+                O Som do sistema leva tudo o que toca neste computador. Se você está no Discord ou em outro app de voz,
+                quem fala pode se ouvir de volta — nesse caso, transmita a janela do jogo.
+              </span>
+            </p>
+          )}
+        </div>
+
         <div className="dialog-body">
-          <SourceGrid items={aba === "monitores" ? monitores : janelas} onChoose={(id) => window.picker.choose(id)} />
+          {/* O valor do alternador vai como está, mesmo desabilitado: no Windows 10 o motivo no log
+              continua sendo `windows-10`, não `som-off`. */}
+          <SourceGrid
+            items={aba === "monitores" ? monitores : janelas}
+            onChoose={(id) => window.picker.choose(id, { som: somLigado })}
+          />
         </div>
 
         <div className="dialog-footer flex-none">

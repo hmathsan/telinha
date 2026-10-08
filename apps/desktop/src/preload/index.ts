@@ -8,9 +8,11 @@ import {
   type FontePickerItem,
   type LogEntry,
   type PickerApi,
+  type PickerChooseOptions,
   type ScrnBroadcastApi,
   type SignalingConnectionState,
   type SomCaptureReport,
+  type SomSupport,
 } from "../shared/ipc.js";
 
 /**
@@ -39,6 +41,7 @@ const scrnBroadcast: ScrnBroadcastApi = {
   log: (entry: LogEntry) => ipcRenderer.send(IPC_CHANNELS.logWrite, entry),
   getLastSomCapture: (): Promise<SomCaptureReport | null> => ipcRenderer.invoke(IPC_CHANNELS.somLastCapture),
   retryCaptureWithoutSom: (): Promise<boolean> => ipcRenderer.invoke(IPC_CHANNELS.somRetryWithoutSom),
+  getSomSupport: (): Promise<SomSupport> => ipcRenderer.invoke(IPC_CHANNELS.somSupport),
 };
 
 const picker: PickerApi = {
@@ -52,8 +55,8 @@ const picker: PickerApi = {
     ipcRenderer.on(IPC_CHANNELS.pickerSources, listener);
     return () => ipcRenderer.removeListener(IPC_CHANNELS.pickerSources, listener);
   },
-  choose: (sourceId: string) => {
-    void ipcRenderer.invoke(IPC_CHANNELS.pickerChoose, sourceId);
+  choose: (sourceId: string, options: PickerChooseOptions) => {
+    void ipcRenderer.invoke(IPC_CHANNELS.pickerChoose, sourceId, options);
   },
   cancel: () => ipcRenderer.send(IPC_CHANNELS.pickerCancel),
 };

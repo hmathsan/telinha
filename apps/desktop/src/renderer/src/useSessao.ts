@@ -12,8 +12,16 @@ export interface QualityWarning {
   readonly text: string;
 }
 
+function deleteKey<T>(prev: Map<string, T>, key: string): Map<string, T> {
+  if (!prev.has(key)) return prev;
+  const next = new Map(prev);
+  next.delete(key);
+  return next;
+}
+
 function buildHandlers(
   setRemoteStreams: Dispatch<SetStateAction<Map<string, MediaStream>>>,
+  setSomStates: Dispatch<SetStateAction<Map<string, boolean>>>,
   setDiagnostics: Dispatch<SetStateAction<readonly ConnectionDiagnostics[]>>,
   setWarnings: Dispatch<SetStateAction<QualityWarning[]>>,
 ): MeshManagerHandlers {
@@ -25,12 +33,11 @@ function buildHandlers(
       setRemoteStreams((prev) => new Map(prev).set(transmissorId, stream));
     },
     onRemoteStreamEnded: (transmissorId) => {
-      setRemoteStreams((prev) => {
-        if (!prev.has(transmissorId)) return prev;
-        const next = new Map(prev);
-        next.delete(transmissorId);
-        return next;
-      });
+      setRemoteStreams((prev) => deleteKey(prev, transmissorId));
+      setSomStates((prev) => deleteKey(prev, transmissorId));
+    },
+    onSomState: (transmissorId, ativo) => {
+      setSomStates((prev) => new Map(prev).set(transmissorId, ativo));
     },
     onDiagnostics: (snapshots) => setDiagnostics(snapshots),
     onEncoderFallback: (key) => {
@@ -64,6 +71,10 @@ export function useSessao() {
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   /** O Som da última captura (spec 0009). Quem consome é a 0010. `null` sem captura. */
   const [somStatus, setSomStatus] = useState<SomStatus | null>(null);
+  /** Silenciado pela barra (spec 0010). Volta a ativo a cada transmissão nova. */
+  const [somAtivo, setSomAtivoState] = useState(true);
+  /** O último `som-state` de cada Transmissor remoto. Ausente = nada recebido. */
+  const [somStates, setSomStates] = useState<Map<string, boolean>>(new Map());
 
   const stateRef = useRef(state);
   stateRef.current = state;
@@ -105,7 +116,7 @@ export function useSessao() {
   // de `close()` deixaria o timer de diagnóstico morto para a próxima Sessão — `close()` para
   // valer só na saída/desmontagem, então "conectar de novo" precisa de um objeto novo.
   const createMesh = useCallback(
-    () => new MeshManager(buildHandlers(setRemoteStreams, setDiagnostics, setWarnings)),
+    () => new MeshManager(buildHandlers(setRemoteStreams, setSomStates, setDiagnostics, setWarnings)),
     [],
   );
 
@@ -136,6 +147,7 @@ export function useSessao() {
             meshRef.current = currentMesh;
             setIsTransmitting(false);
             setRemoteStreams(new Map());
+            setSomStates(new Map());
           }
           currentMesh.setMyId(message.participanteId);
           previousMyIdRef.current = message.participanteId;
@@ -206,6 +218,7 @@ export function useSessao() {
         setIsTransmitting(false);
         setLocalStream(null);
         setRemoteStreams(new Map());
+        setSomStates(new Map());
         dispatch({ source: "connection-terminated", reason: connectionState.reason });
       }
     });
@@ -248,6 +261,17 @@ export function useSessao() {
       const capture = await captureFonte();
       stream = capture.stream;
       setSomStatus(capture.som);
+      setSomAtivoState(true);
+      // O Som parar não é a Fonte parar, mas conta como encerrado para o botão e para `som-state`.
+      capture.stream.getAudioTracks()[0]?.addEventListener(
+        "ended",
+        // `track.stop()` não dispara `ended`: parar ou trocar de Fonte pelo app não passa por aqui.
+        () => {
+          setSomStatus({ ativo: false, reason: "capture-ended" });
+          meshRef.current?.handleSomEnded();
+        },
+        { once: true },
+      );
     } catch (error) {
       // Cancelar no seletor e ter a captura recusada chegam aqui iguais; o log é o que distingue.
       logToMain("info", "capture-fonte-aborted", { message: String(error) });
@@ -258,6 +282,11 @@ export function useSessao() {
     watchLocalTrack(stream);
     send({ type: "request-palco" });
   }, [send, watchLocalTrack]);
+
+  const setSomAtivo = useCallback((ativo: boolean) => {
+    meshRef.current?.setSomAtivo(ativo);
+    setSomAtivoState(ativo);
+  }, []);
 
   const releasePalco = useCallback(() => send({ type: "release-palco" }), [send]);
   const expel = useCallback((participanteId: string) => send({ type: "expel", participanteId }), [send]);
@@ -270,6 +299,7 @@ export function useSessao() {
     setIsTransmitting(false);
     setLocalStream(null);
     setRemoteStreams(new Map());
+    setSomStates(new Map());
     setDiagnostics([]);
   }, [unwatchLocalTrack]);
 
@@ -309,6 +339,9 @@ export function useSessao() {
     localStream,
     // Sem captura em curso não há Som a relatar, e todo caminho que encerra a captura zera `localStream`.
     somStatus: localStream ? somStatus : null,
+    somAtivo,
+    somStates,
+    setSomAtivo,
     connect,
     respondEntry,
     startTransmitindo,

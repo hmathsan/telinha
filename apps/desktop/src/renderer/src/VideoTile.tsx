@@ -1,6 +1,22 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, type SyntheticEvent } from "react";
+import { IconSpeakerHigh, IconSpeakerSlash } from "./components/icons/index.js";
 
 export type VideoTileVariant = "stage" | "thumbnail" | "cell";
+
+/**
+ * O Som desta Fonte para quem assiste (spec 0010, "Controles na Fonte"). Ausente na própria Fonte
+ * de quem transmite. `audivel` é o resultado de `selectSomAudivel`, não a escolha gravada.
+ */
+export type VideoTileSom =
+  | {
+      readonly kind: "com-som";
+      readonly audivel: boolean;
+      /** 0 a 1. */
+      readonly volume: number;
+      readonly onToggle: () => void;
+      readonly onVolume: (volume: number) => void;
+    }
+  | { readonly kind: "sem-som" };
 
 /**
  * Quanto o clique simples espera para ver se vira duplo. Sem isso, um duplo clique numa célula da
@@ -23,6 +39,7 @@ export interface VideoTileProps {
   readonly meta?: string | null;
   readonly onClick?: () => void;
   readonly onDoubleClick?: () => void;
+  readonly som?: VideoTileSom;
 }
 
 const VARIANT_CLASS: Record<VideoTileVariant, string> = {
@@ -31,7 +48,12 @@ const VARIANT_CLASS: Record<VideoTileVariant, string> = {
   cell: "video-frame-cell",
 };
 
-export function VideoTile({ surface, label, variant = "stage", meta = null, onClick, onDoubleClick }: VideoTileProps) {
+/** Controles de Som nunca promovem nem abrem tela cheia. */
+function stop(event: SyntheticEvent): void {
+  event.stopPropagation();
+}
+
+export function VideoTile({ surface, label, variant = "stage", meta = null, onClick, onDoubleClick, som }: VideoTileProps) {
   const pendingClickRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const slotRef = useCallback(
@@ -84,30 +106,58 @@ export function VideoTile({ surface, label, variant = "stage", meta = null, onCl
   }
 
   const frameClass = `video-frame ${VARIANT_CLASS[variant]}`;
-  const content = (
-    <>
-      <div className="video-surface-slot" ref={slotRef} />
-      <span className="video-frame-label">
-        <span className="dot dot-live" />
-        {label}
-      </span>
-      {meta && <span className="video-frame-meta">{meta}</span>}
-    </>
-  );
 
-  // Toda Fonte clicável é um `<button>`: foco de teclado e o anel de acento do Nocturne, como
-  // qualquer outro elemento interativo (spec 0007, "Regras").
-  if (onClick) {
-    return (
-      <button type="button" className={frameClass} onClick={handleClick} onDoubleClick={handleDoubleClick}>
-        {content}
-      </button>
-    );
-  }
+  const muteLabel = som?.kind === "com-som" ? (som.audivel ? `Silenciar ${label}` : `Ouvir ${label}`) : "";
 
+  // A moldura é um `<div>`: botão dentro de botão não é HTML válido. Quem recebe clique, duplo
+  // clique e o anel de foco é a camada que cobre a moldura; os controles de Som são irmãos dela,
+  // por cima (spec 0010). Toda Fonte clicável continua sendo um `<button>` (spec 0007, "Regras").
+  // Nome embaixo à esquerda, Som embaixo à direita, com as bases alinhadas.
   return (
-    <div className={frameClass} onDoubleClick={handleDoubleClick}>
-      {content}
+    <div className={frameClass} onDoubleClick={onClick ? undefined : handleDoubleClick}>
+      <div className="video-surface-slot" ref={slotRef} />
+      {onClick && (
+        <button
+          type="button"
+          className="video-frame-hit"
+          aria-label={label}
+          onClick={handleClick}
+          onDoubleClick={handleDoubleClick}
+        />
+      )}
+      <span className="video-frame-pill video-frame-label">
+        <span className="dot dot-live" />
+        <span className="min-w-0 truncate">{label}</span>
+        {som?.kind === "sem-som" && <IconSpeakerSlash label="sem Som" className="video-frame-sem-som" />}
+      </span>
+      {som?.kind === "com-som" && (
+        // O volume vem antes do mudo: ele abre para a esquerda, e a ordem do Tab segue a da tela.
+        <div className="video-frame-pill video-frame-som" onClick={stop} onDoubleClick={stop}>
+          {variant !== "thumbnail" && (
+            <input
+              type="range"
+              className="range video-frame-volume"
+              min={0}
+              max={100}
+              step={5}
+              value={Math.round(som.volume * 100)}
+              aria-label={`Volume de ${label}`}
+              onChange={(event) => som.onVolume(Number(event.target.value) / 100)}
+            />
+          )}
+          <button
+            type="button"
+            className="video-frame-mute"
+            aria-pressed={!som.audivel}
+            aria-label={muteLabel}
+            title={muteLabel}
+            onClick={som.onToggle}
+          >
+            {som.audivel ? <IconSpeakerHigh /> : <IconSpeakerSlash />}
+          </button>
+        </div>
+      )}
+      {meta && <span className="video-frame-meta">{meta}</span>}
     </div>
   );
 }

@@ -7,6 +7,7 @@ import {
   IconCopy,
   IconGridFour,
   IconSignOut,
+  IconSpeakerHigh,
   IconSquare,
   IconUsers,
 } from "./components/icons/index.js";
@@ -18,6 +19,9 @@ export interface TopBarProps {
   readonly modo: ModoPalco;
   readonly alternadorVisivel: boolean;
   readonly onModoChange: (modo: ModoPalco) => void;
+  /** Há escolha manual de Som a desfazer (spec 0010, "Som segue o Palco"). */
+  readonly temEscolhaDeSom: boolean;
+  readonly onSomSegueOPalco: () => void;
   readonly transmitirButton: ReactNode;
   readonly participantesCount: number;
   readonly drawerOpen: boolean;
@@ -50,7 +54,8 @@ export function TopBar(props: TopBarProps) {
       </span>
 
       {props.codigoDeSessao && (
-        <span className="tag">
+        <span className="sessao-chip">
+          <span className="sessao-chip-label">Sessão</span>
           <span className="codigo-de-sessao">{formatCodigoDeSessao(props.codigoDeSessao)}</span>
           <button
             type="button"
@@ -86,6 +91,20 @@ export function TopBar(props: TopBarProps) {
           </button>
         </span>
       )}
+      {/* Colado ao alternador e com a mesma regra: com um Transmissor só, o mudo da Fonte desfaz. */}
+      {props.alternadorVisivel && (
+        <button
+          type="button"
+          className="btn btn-ghost btn-toggle -ml-3"
+          aria-pressed={!props.temEscolhaDeSom}
+          disabled={!props.temEscolhaDeSom}
+          onClick={props.onSomSegueOPalco}
+          title="Volta a ouvir quem está no Palco"
+        >
+          <IconSpeakerHigh /> Som segue o Palco
+        </button>
+      )}
+      {props.alternadorVisivel && <span className="topbar-divider" aria-hidden="true" />}
 
       {props.transmitirButton}
 

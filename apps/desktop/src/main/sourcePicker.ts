@@ -1,6 +1,12 @@
 import { type BrowserWindow, type DesktopCapturerSource, desktopCapturer, ipcMain } from "electron";
 import { rotularFontes } from "../shared/fonteLabels.js";
-import { IPC_CHANNELS, type FontePickerItem } from "../shared/ipc.js";
+import { IPC_CHANNELS, type FontePickerItem, type PickerChooseOptions } from "../shared/ipc.js";
+
+export interface FonteChoice {
+  readonly source: DesktopCapturerSource;
+  /** O alternador "Transmitir com Som" (spec 0010). */
+  readonly somRequested: boolean;
+}
 
 const REFRESH_INTERVAL_MS = 1000;
 const THUMBNAIL_SIZE = { width: 320, height: 180 };
@@ -33,9 +39,9 @@ let cancelActive: (() => void) | null = null;
  * dono da enumeração — `desktopCapturer.getSources()` roda aqui e a lista vai por IPC (spec 0003,
  * "Captura") —, e a atualização a cada segundo continua enquanto o seletor está aberto.
  *
- * Resolve com a Fonte escolhida, ou `null` se cancelada.
+ * Resolve com a Fonte escolhida e o alternador de Som, ou `null` se cancelada.
  */
-export function openFontePicker(window: BrowserWindow): Promise<DesktopCapturerSource | null> {
+export function openFontePicker(window: BrowserWindow): Promise<FonteChoice | null> {
   cancelActive?.();
 
   return new Promise((resolve) => {
@@ -54,7 +60,7 @@ export function openFontePicker(window: BrowserWindow): Promise<DesktopCapturerS
 
     const interval = setInterval(() => void refresh(), REFRESH_INTERVAL_MS);
 
-    function settle(result: DesktopCapturerSource | null): void {
+    function settle(result: FonteChoice | null): void {
       if (settled) return;
       settled = true;
       cancelActive = null;
@@ -71,8 +77,10 @@ export function openFontePicker(window: BrowserWindow): Promise<DesktopCapturerS
     }
 
     cancelActive = onCancel;
-    ipcMain.handle(IPC_CHANNELS.pickerChoose, (_event, sourceId: string) => {
-      settle(latestBySourceId.get(sourceId) ?? null);
+    ipcMain.handle(IPC_CHANNELS.pickerChoose, (_event, sourceId: string, options: PickerChooseOptions | undefined) => {
+      const source = latestBySourceId.get(sourceId);
+      // Só `false` explícito desliga: o padrão do alternador é ligado.
+      settle(source ? { source, somRequested: options?.som !== false } : null);
     });
     ipcMain.on(IPC_CHANNELS.pickerCancel, onCancel);
     window.once("closed", onCancel);

@@ -306,6 +306,65 @@ na versão nova transmite com Som.
   `asarUnpack: ["**/node_modules/koffi/**"]` ao `electron-builder.yml` (e, se a mensagem citar o
   pacote da plataforma, também `**/node_modules/@koromix/**`).
 
+### Controles de Som
+
+Valida a [spec 0010](./specs/0010-controles-de-som.md). Os casos 12 a 20 são os passos 1 a 9 dela.
+
+**12. Alternador.** Abra o seletor várias vezes, desligando "Transmitir com Som" numa delas.
+
+- **O que observar:** ele abre ligado toda vez. Desligado, a Fonte vai sem Som, com
+  `som-capture-requested { reason: 'som-off' }` no log e sem faixa de aviso acima do Palco.
+- **Se falhar:** `reason` diferente de `som-off` é o valor do alternador não chegando ao principal
+  (`picker.choose(sourceId, { som })` → `FonteChoice.somRequested`).
+
+**13. Aviso.** Com o alternador ligado, troque entre as abas.
+
+- **O que observar:** o aviso do Som do sistema aparece na aba Monitores e some na aba Janelas e com
+  o alternador desligado.
+
+**14. Windows 10.** _Parado com o caso 5._ Abra o seletor no Windows 10, com e sem a válvula.
+
+- **O que observar:** sem válvula, o alternador aparece desabilitado com "Som exige Windows 11". Com
+  `SCRN_BROADCAST_FORCE_SOM=1`, fica habilitado.
+
+**15. Silenciar no meio.** A transmite com Som; B e C assistem. A clica em "Silenciar Som" na barra.
+
+- **O que observar:** nos Espectadores, o ícone "sem Som" aparece ao lado do nome de A em até um
+  segundo, e a coluna Som kbps de A cai a zero. "Ativar Som" desfaz as duas coisas. No log de A,
+  `som-ativo-changed { ativo }` a cada clique. Um Espectador que entra enquanto A está silenciado já
+  chega vendo o ícone.
+- **Se falhar:** kbps em zero sem o ícone é o `som-state` não chegando — procure
+  `mesh-signal-rejected` no Espectador. O ícone sem a queda de kbps é o `replaceTrack(null)` falhando
+  (`som-replace-track-failed`).
+
+**16. Escolha manual.** X e Y transmitem com Som; o Espectador fica no Foco com X no Palco.
+
+- **O que observar:** silencie X pelo mudo dele, promova Y e volte a promover X: X continua mudo.
+  Ligue o mudo da miniatura de Y: X e Y tocam juntos. "Som segue o Palco" volta tudo à regra e fica
+  desabilitado até a próxima escolha.
+
+**17. Volume.** No automático, abaixe o volume de X e promova Y.
+
+- **O que observar:** X silencia, porque o volume não é escolha manual. Promova X de volta: o volume
+  baixo continua.
+
+**18. Parar e voltar.** Com X silenciado na mão e o volume dele baixo, X para e volta a transmitir.
+
+- **O que observar:** X volta seguindo o Palco, com volume cheio.
+
+**19. Controles não promovem.** Clique e dê duplo clique no mudo e no volume de uma miniatura e de
+uma célula da Grade.
+
+- **O que observar:** nada é promovido e a tela cheia não abre.
+- **Se falhar:** o clique atravessando é o `stopPropagation` faltando na pílula do nome
+  (`VideoTile.tsx`).
+
+**20. Transmissor em versão antiga.** Um Transmissor com o instalador anterior transmite para um
+Espectador na versão nova, e o contrário.
+
+- **O que observar:** no Espectador novo, a Fonte do antigo mostra "sem Som". O cliente antigo, como
+  Espectador do novo, loga `mesh-signal-rejected` a cada oferta com Som e segue funcionando.
+
 ## TODO — validações pendentes
 
 O que ainda não foi observado em máquina nenhuma, para quem tiver o cenário rodar e riscar daqui.

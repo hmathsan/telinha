@@ -2,7 +2,7 @@ import type { ReactNode, RefObject } from "react";
 import type { PalcoLayout } from "../../shared/palcoSelection.js";
 import { IconMonitor } from "./components/icons/index.js";
 import type { SurfaceOf } from "./media/videoSurfaces.js";
-import { VideoTile } from "./VideoTile.js";
+import { VideoTile, type VideoTileSom } from "./VideoTile.js";
 
 export interface PalcoProps {
   readonly layout: PalcoLayout;
@@ -13,6 +13,8 @@ export interface PalcoProps {
    */
   readonly surfaceOf: SurfaceOf;
   readonly nameOf: (id: string) => string;
+  /** Os controles de Som de cada Fonte; `undefined` na própria Fonte de quem transmite (spec 0010). */
+  readonly somOf: (id: string) => VideoTileSom | undefined;
   /** Resolução e taxa do Palco, no canto oposto ao nome. */
   readonly stageMeta: string | null;
   /**
@@ -52,6 +54,7 @@ export function Palco(props: PalcoProps) {
               variant="cell"
               surface={props.surfaceOf(id)}
               label={props.nameOf(id)}
+              som={props.somOf(id)}
               // Clique promove e volta para Foco; duplo clique faz o mesmo e entra em tela cheia —
               // duplo clique já significa "quero ver isto grande" (spec 0008, "Palco").
               onClick={() => props.onTileClick(id)}
@@ -67,6 +70,7 @@ export function Palco(props: PalcoProps) {
                 key={layout.stagedId}
                 surface={props.surfaceOf(layout.stagedId)}
                 label={props.nameOf(layout.stagedId)}
+                som={props.somOf(layout.stagedId)}
                 meta={props.stageMeta}
                 // Clicar em quem já está no Palco abre a Grade. Sem alternador não há Grade a que
                 // ir, e aí a Fonte não vira controle: um clique que não muda nada parece defeito.
@@ -83,6 +87,7 @@ export function Palco(props: PalcoProps) {
                   variant="thumbnail"
                   surface={props.surfaceOf(id)}
                   label={props.nameOf(id)}
+                  som={props.somOf(id)}
                   onClick={() => props.onTileClick(id)}
                 />
               ))}

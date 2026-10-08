@@ -25,10 +25,13 @@ export type SomCaptureDecision =
   | { readonly audio: string; readonly mode: SomCaptureMode }
   | { readonly audio: null; readonly reason: SomUnavailableReason };
 
-/** O que o renderer sabe do Som da Fonte depois da captura. Quem consome é a 0010. */
+/**
+ * O que o renderer sabe do Som da Fonte depois da captura. `capture-ended` é a track que terminou
+ * no meio da transmissão (`som-capture-ended`); as outras razões vêm da captura (spec 0010).
+ */
 export type SomStatus =
   | { readonly ativo: true; readonly mode: SomCaptureMode }
-  | { readonly ativo: false; readonly reason: SomUnavailableReason };
+  | { readonly ativo: false; readonly reason: SomUnavailableReason | "capture-ended" };
 
 export interface SomCaptureInput {
   readonly fonteKind: "screen" | "window";

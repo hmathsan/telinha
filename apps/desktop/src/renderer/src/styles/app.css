@@ -107,6 +107,12 @@
   --size-dialog: 880px;
   --size-dialog-height: 560px;
   --size-avatar: 28px;
+
+  /*
+   * O relevo do Palco: uma sombra longa e escura atrás do quadro, para a Fonte parecer saltar do
+   * fundo. Fica fora do vídeo — nada cobre a imagem.
+   */
+  --shadow-stage: 0 24px 48px -16px rgb(0 0 0 / 0.75), 0 8px 16px -8px rgb(0 0 0 / 0.6);
 }
 
 /* ── Entrada ────────────────────────────────────────────────────────────── */
@@ -156,6 +162,71 @@
   letter-spacing: var(--font-tracking-wide);
 }
 
+/*
+ * O Código de Sessão em destaque próprio, com rótulo e sombra, mas a 75%: está à vista para quem
+ * precisa passar adiante, sem disputar atenção com o Palco. Volta a 100% com o ponteiro ou o foco.
+ */
+.sessao-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-1) var(--space-1) var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-well);
+  box-shadow: var(--shadow-sm);
+  white-space: nowrap;
+  opacity: 0.75;
+  transition: opacity 120ms ease;
+}
+
+.sessao-chip:hover,
+.sessao-chip:focus-within {
+  opacity: 1;
+}
+
+.sessao-chip-label {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  letter-spacing: var(--font-tracking-wide);
+  text-transform: uppercase;
+}
+
+/* "Som segue o Palco" pressionado: acento em linha e um fundo tonal leve, como no design. */
+.btn-toggle[aria-pressed="true"] {
+  background: color-mix(in srgb, var(--color-accent) 14%, transparent);
+  color: var(--color-accent-700);
+}
+
+.topbar-divider {
+  width: 1px;
+  height: var(--space-5);
+  background: var(--color-border);
+}
+
+/* A faixa de aviso acima do Palco: tom de alerta no fundo, não só na borda. */
+.faixa-warn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-1) var(--space-1) var(--space-1) var(--space-3);
+  border: 1px solid var(--color-warn-300);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-warn-300) 35%, var(--color-bg));
+  color: var(--color-warn-700);
+  font-size: var(--font-size-sm);
+  line-height: var(--font-leading-normal);
+}
+
+.faixa-warn-icon {
+  flex: 0 0 auto;
+  color: var(--color-warn-500);
+  font-size: var(--font-size-lg);
+}
+
+.faixa-warn .btn-ghost {
+  color: inherit;
+}
+
 /* Alternador Foco/Grade: um grupo, não dois botões soltos. */
 .segmented {
   display: inline-flex;
@@ -173,9 +244,11 @@
 
 /* ── Palco ──────────────────────────────────────────────────────────────── */
 
+/* A sombra dá a sensação de palco: as Fontes flutuam sobre o fundo. */
 .stage-surface {
   border-radius: var(--radius-lg);
   background: var(--color-well);
+  box-shadow: var(--shadow-stage);
   overflow: hidden;
 }
 
@@ -193,6 +266,7 @@
 
 .palco-surface:fullscreen .stage-surface {
   border-radius: 0;
+  box-shadow: none;
 }
 
 .palco-grade {
@@ -200,7 +274,19 @@
   grid-template-columns: repeat(auto-fit, minmax(var(--size-grade-cell), 1fr));
   align-content: center;
   gap: var(--space-3);
+  /* Folga para a sombra das células não ser cortada pela rolagem. */
+  padding: var(--space-2) var(--space-2) var(--space-4);
   overflow-y: auto;
+}
+
+/* Com folga embaixo pelo mesmo motivo: a faixa rola na horizontal e cortaria a sombra. */
+.palco-thumbs {
+  padding-bottom: var(--space-4);
+}
+
+.video-frame-cell,
+.video-frame-thumb {
+  box-shadow: var(--shadow-stage);
 }
 
 .empty-palco-icon {
@@ -221,13 +307,34 @@
   text-align: left;
 }
 
-button.video-frame {
+/*
+ * A camada de clique cobre a moldura inteira (spec 0010). O anel e a borda de hover ficam na
+ * moldura: o `overflow: hidden` dela cortaria o anel desenhado na camada, mas não o dela mesma.
+ */
+.video-frame-hit {
+  position: absolute;
+  inset: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
   cursor: pointer;
+}
+
+.video-frame:has(> .video-frame-hit) {
   transition: border-color 120ms ease;
 }
 
-button.video-frame:hover {
+.video-frame:has(> .video-frame-hit:hover) {
   border-color: var(--color-accent-400);
+}
+
+.video-frame-hit:focus-visible {
+  outline: none;
+}
+
+.video-frame:has(> .video-frame-hit:focus-visible) {
+  outline: var(--focus-ring-width) solid var(--color-focus);
+  outline-offset: var(--focus-ring-offset);
 }
 
 /* O Palco preenche a altura disponível; a proporção quem dita é o vídeo, com `contain`. */
@@ -264,35 +371,130 @@ button.video-frame:hover {
   background: var(--color-well);
 }
 
-.video-frame-label,
-.video-frame-meta {
+/*
+ * As duas pílulas da base — nome e Som — têm a mesma altura, para as bases alinharem (spec 0010).
+ * Nenhuma captura clique por si: clicar no nome ainda promove, e só os controles dentro do Som
+ * recebem o ponteiro.
+ */
+.video-frame-pill {
+  --pill-height: 36px;
+  --pill-inset: var(--space-3);
+
   position: absolute;
+  bottom: var(--pill-inset);
   display: inline-flex;
   align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-1) var(--space-2);
-  border-radius: var(--radius-sm);
-  background: var(--color-scrim);
-  color: var(--color-neutral-900);
-  font-size: var(--font-size-xs);
+  height: var(--pill-height);
+  border: 1px solid color-mix(in srgb, var(--color-text) 8%, transparent);
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--color-bg) 72%, transparent);
+  color: var(--color-text);
   line-height: var(--font-leading-tight);
-  max-width: calc(100% - var(--space-4));
-  overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
+  pointer-events: none;
 }
 
 .video-frame-label {
-  left: var(--space-2);
-  bottom: var(--space-2);
+  left: var(--pill-inset);
+  gap: var(--space-2);
+  max-width: 55%;
+  padding: 0 var(--space-4) 0 var(--space-4);
+  font-size: var(--font-size-md);
 }
 
-/* Canto oposto ao nome, no Palco em Foco: resolução e taxa (spec 0008, "Palco"). */
-.video-frame-meta {
-  right: var(--space-2);
-  top: var(--space-2);
+.video-frame-sem-som {
+  flex: 0 0 auto;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-lg);
+}
+
+.video-frame-som {
+  right: var(--pill-inset);
+  gap: var(--space-3);
+  padding: 1px;
+}
+
+.video-frame-som button,
+.video-frame-som input {
+  pointer-events: auto;
+}
+
+.video-frame-mute {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: calc(var(--pill-height) - 4px);
+  height: calc(var(--pill-height) - 4px);
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: transparent;
   color: var(--color-neutral-800);
+  font-size: calc(var(--pill-height) / 2);
+  cursor: pointer;
+  transition:
+    background-color 120ms ease,
+    color 120ms ease;
+}
+
+.video-frame:hover .video-frame-mute,
+.video-frame:focus-within .video-frame-mute {
+  color: var(--color-text);
+}
+
+.video-frame-mute:hover {
+  background: color-mix(in srgb, var(--color-text) 10%, transparent);
+}
+
+/* Silenciado: o ícone cortado em acento, para o estado não depender só do desenho. */
+.video-frame-mute[aria-pressed="true"],
+.video-frame:hover .video-frame-mute[aria-pressed="true"] {
+  color: var(--color-accent-700);
+}
+
+/* O volume abre para a esquerda do mudo com a moldura sob o ponteiro ou com foco dentro dela. */
+.video-frame-volume {
+  display: none;
+  width: calc(var(--space-unit) * 34);
+}
+
+.video-frame:hover .video-frame-volume,
+.video-frame:focus-within .video-frame-volume {
+  display: block;
+}
+
+.video-frame:hover .video-frame-som:has(.video-frame-volume),
+.video-frame:focus-within .video-frame-som:has(.video-frame-volume) {
+  padding-left: var(--space-4);
+}
+
+.video-frame-cell .video-frame-volume {
+  width: calc(var(--space-unit) * 27);
+}
+
+.video-frame-thumb .video-frame-pill {
+  --pill-height: 30px;
+  --pill-inset: var(--space-2);
+}
+
+.video-frame-thumb .video-frame-label {
+  font-size: var(--font-size-xs);
+}
+
+/* Canto superior direito, no Palco em Foco: resolução e taxa (spec 0008, "Palco"). */
+.video-frame-meta {
+  position: absolute;
+  top: var(--space-3);
+  right: var(--space-3);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--color-bg) 72%, transparent);
+  color: var(--color-neutral-800);
+  font-size: var(--font-size-xs);
   font-variant-numeric: tabular-nums;
+  line-height: var(--font-leading-tight);
+  white-space: nowrap;
 }
 
 /* ── Gaveta de Participantes ────────────────────────────────────────────── */

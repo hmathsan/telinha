@@ -5,7 +5,7 @@ import { preferH264 } from "../../../shared/media/codecPreference.js";
 import { DiagnosticsSampler, didFallBackToSoftwareEncoder, type ConnectionDiagnosticsSnapshot } from "../../../shared/media/diagnostics.js";
 import {
   connectionKey,
-  meshSignalPayloadSchema,
+  parseMeshSignal,
   type IceCandidateLike,
   type MeshSignalPayload,
   type SessionDescriptionLike,
@@ -56,6 +56,11 @@ interface ManagedConnection {
    * e sem entrada no mapa não sobra ninguém para insistir no pedido.
    */
   awaitingReplacement: boolean;
+  /**
+   * Só do Transmissor: o transceiver do Som. Depois de `replaceTrack(null)` o `sender.track` é
+   * `null` e não serve mais para achá-lo (spec 0010, "Botão na barra superior").
+   */
+  somTransceiver: RTCRtpTransceiver | null;
 }
 
 export interface ConnectionDiagnostics extends ConnectionDiagnosticsSnapshot {
@@ -75,6 +80,8 @@ export interface MeshManagerHandlers {
   readonly onRemoteStreamEnded: (transmissorId: string) => void;
   readonly onDiagnostics: (snapshots: readonly ConnectionDiagnostics[]) => void;
   readonly onEncoderFallback: (connectionKey: string) => void;
+  /** O Transmissor disse se o Som dele está ativo (`som-state`, spec 0010). */
+  readonly onSomState: (transmissorId: string, ativo: boolean) => void;
 }
 
 /**
@@ -93,6 +100,8 @@ export class MeshManager {
   /** Uma só: a track de áudio é a mesma em todas as conexões de saída. */
   private readonly somSilence = new SomSilenceTracker();
   private diagnosticsTimer: ReturnType<typeof setInterval> | null = null;
+  /** Silenciado pela barra: os senders de áudio ficam em `replaceTrack(null)`. */
+  private somAtivo = true;
 
   constructor(private readonly handlers: MeshManagerHandlers) {
     this.diagnosticsTimer = setInterval(() => void this.pollDiagnostics(), DIAGNOSTICS_INTERVAL_MS);
@@ -112,6 +121,7 @@ export class MeshManager {
 
   startTransmitting(stream: MediaStream, espectadorIds: readonly string[]): void {
     this.localStream = stream;
+    this.somAtivo = true;
     this.somSilence.reset();
     for (const espectadorId of espectadorIds) {
       if (espectadorId === this.myId) continue;
@@ -127,6 +137,31 @@ export class MeshManager {
     for (const track of this.localStream?.getTracks() ?? []) track.stop();
     this.localStream = null;
     this.somSilence.reset();
+  }
+
+  /**
+   * Silencia ou reativa o Som sem renegociar: `replaceTrack(null)` para o encode Opus de todas as
+   * pernas, e a track volta no mesmo transceiver (spec 0010).
+   */
+  setSomAtivo(ativo: boolean): void {
+    if (ativo === this.somAtivo) return;
+    this.somAtivo = ativo;
+    this.somSilence.reset();
+    const track = ativo ? this.liveSomTrack() : null;
+    for (const [key, entry] of this.connections) {
+      if (!entry.somTransceiver) continue;
+      void entry.somTransceiver.sender.replaceTrack(track).catch((error: unknown) => {
+        logToMain("error", "som-replace-track-failed", { key, ativo, message: String(error) });
+      });
+    }
+    logToMain("info", "som-ativo-changed", { ativo });
+    this.broadcastSomState();
+  }
+
+  /** A track de áudio terminou no meio da transmissão: o Som conta como encerrado (spec 0010). */
+  handleSomEnded(): void {
+    logToMain("info", "som-ended-broadcast", { espectadores: this.outgoing().length });
+    this.broadcastSomState();
   }
 
   handleParticipanteJoined(participanteId: string): void {
@@ -153,15 +188,20 @@ export class MeshManager {
   }
 
   handleSignal(fromParticipanteId: string, rawPayload: unknown): void {
-    const parsed = meshSignalPayloadSchema.safeParse(rawPayload);
-    if (!parsed.success) {
-      logToMain("warn", "mesh-signal-rejected", { fromParticipanteId, issues: parsed.error.issues });
+    const parsed = parseMeshSignal(fromParticipanteId, rawPayload);
+    if (!parsed.ok) {
+      logToMain("warn", "mesh-signal-rejected", { fromParticipanteId, issues: parsed.issues });
+      return;
+    }
+    const payload = parsed.payload;
+    if (payload.kind === "som-state") {
+      this.handlers.onSomState(payload.transmissorId, payload.ativo);
       return;
     }
     // Uma falha aqui (SDP incompatível, glare) matava a conexão sem deixar rastro: nada acontecia
     // na tela, e o log não existia para contar o contrário.
-    void this.applySignal(parsed.data).catch((error: unknown) => {
-      logToMain("error", "mesh-signal-failed", { fromParticipanteId, kind: parsed.data.kind, message: String(error) });
+    void this.applySignal(payload).catch((error: unknown) => {
+      logToMain("error", "mesh-signal-failed", { fromParticipanteId, kind: payload.kind, message: String(error) });
     });
   }
 
@@ -179,7 +219,7 @@ export class MeshManager {
 
   // -------------------------------------------------------------------------
 
-  private async applySignal(payload: MeshSignalPayload): Promise<void> {
+  private async applySignal(payload: Exclude<MeshSignalPayload, { kind: "som-state" }>): Promise<void> {
     const key = connectionKey(payload.transmissorId, payload.espectadorId);
 
     if (payload.kind === "offer") {
@@ -264,6 +304,15 @@ export class MeshManager {
       // Som não tem preferência de codec: é Opus, e o estéreo vai no SDP.
       const isVideo = track.kind === "video";
       if (isVideo) this.applyPreferredCodecs(transceiver);
+      else {
+        entry.somTransceiver = transceiver;
+        // Perna nova enquanto o Som está silenciado: nasce silenciada, sem renegociar depois.
+        if (!this.somAtivo) {
+          void transceiver.sender.replaceTrack(null).catch((error: unknown) => {
+            logToMain("error", "som-replace-track-failed", { key, ativo: false, message: String(error) });
+          });
+        }
+      }
 
       const sender = transceiver.sender;
       const params = sender.getParameters();
@@ -297,6 +346,7 @@ export class MeshManager {
       lastRecoveryAt: 0,
       mediaFlowingAt: now,
       awaitingReplacement: false,
+      somTransceiver: null,
     };
     this.wireConnection(entry);
     this.connections.set(connectionKey(transmissorId, espectadorId), entry);
@@ -314,6 +364,34 @@ export class MeshManager {
       espectadorId: entry.espectadorId,
       sdp: entry.pc.localDescription.toJSON() as SessionDescriptionLike,
     });
+    // Toda oferta (primeira, `iceRestart`, `recreate`) leva o estado do Som atrás: cobre quem entra
+    // depois e quem teve a perna refeita, sem estado extra (spec 0010).
+    this.sendSomState(entry);
+  }
+
+  /** Só há Som a reativar enquanto a track capturada está viva. */
+  private liveSomTrack(): MediaStreamTrack | null {
+    const track = this.localStream?.getAudioTracks()[0];
+    return track && track.readyState === "live" ? track : null;
+  }
+
+  private outgoing(): ManagedConnection[] {
+    return [...this.connections.values()].filter((c) => c.role === "transmissor");
+  }
+
+  private sendSomState(entry: ManagedConnection): void {
+    // Sem track de áudio na stream local não há Som a anunciar: o Espectador já vê "sem Som".
+    if (!this.localStream || this.localStream.getAudioTracks().length === 0) return;
+    this.handlers.sendSignal(entry.espectadorId, {
+      kind: "som-state",
+      transmissorId: entry.transmissorId,
+      espectadorId: entry.espectadorId,
+      ativo: this.somAtivo && this.liveSomTrack() !== null,
+    });
+  }
+
+  private broadcastSomState(): void {
+    for (const entry of this.outgoing()) this.sendSomState(entry);
   }
 
   private createPeerConnection(): RTCPeerConnection {
@@ -579,7 +657,8 @@ export class MeshManager {
    */
   private observeSomSilence(snapshots: readonly ConnectionDiagnostics[], now: number): void {
     const outgoing = snapshots.find((s) => s.role === "transmissor");
-    if (!outgoing) return;
+    // Silenciado de propósito não é a captura em silêncio.
+    if (!outgoing || !this.somAtivo) return;
     const transition = this.somSilence.observe(outgoing.somAudioLevel, now);
     if (transition === "went-silent") {
       logToMain("info", "som-capture-silent", { silentForMs: this.somSilence.silentForMs(now) });

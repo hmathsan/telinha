@@ -18,6 +18,7 @@ import {
   type DiagnosticsExportRequest,
   type LogEntry,
   type SomCaptureReport,
+  type SomSupport,
 } from "../shared/ipc.js";
 import { somForced } from "../shared/hardening.js";
 import { decideSomCapture, hwndFromSourceId, windowsBuildFrom } from "../shared/media/somCapture.js";
@@ -47,13 +48,12 @@ let retryWithoutSom: { readonly report: SomCaptureReport; readonly source: Deskt
   null;
 
 /** Decide o Som da Fonte escolhida e monta a resposta do handler. */
-function streamsWithSom(source: DesktopCapturerSource): Streams {
+function streamsWithSom(source: DesktopCapturerSource, somRequested: boolean): Streams {
   const fonteKind = source.id.startsWith("screen") ? "screen" : "window";
   const hwnd = fonteKind === "window" ? hwndFromSourceId(source.id) : null;
   const pid = hwnd !== null ? processIdOfWindow(hwnd) : null;
   const windowsBuild = windowsBuildFrom(release());
   const forced = somForced(process.env);
-  const somRequested = true;
 
   const decision = decideSomCapture({ fonteKind, somRequested, windowsBuild, pid, ownPid: process.pid, forced });
   log.info("som-capture-requested", {
@@ -98,12 +98,13 @@ function registerDisplayMediaHandler(): void {
       // Uma escolha nova apaga a anterior: cancelar este seletor não pode armar um reenvio da Fonte velha.
       lastSomCapture = null;
       openFontePicker(mainWindow)
-        .then((source) => {
-          if (!source) {
+        .then((choice) => {
+          if (!choice) {
             callback({});
             return;
           }
-          callback(request.audioRequested ? streamsWithSom(source) : { video: source });
+          const { source, somRequested } = choice;
+          callback(request.audioRequested ? streamsWithSom(source, somRequested) : { video: source });
         })
         .catch((error: unknown) => {
           log.error("fonte-picker-failed", error);
@@ -114,7 +115,26 @@ function registerDisplayMediaHandler(): void {
   );
 }
 
+/**
+ * Se o alternador do seletor pode ligar (spec 0010). Pergunta à própria `decideSomCapture`, com um
+ * PID que não é o deste processo, para a regra de build e a válvula continuarem num lugar só.
+ */
+function somSupport(): SomSupport {
+  const base = {
+    somRequested: true,
+    windowsBuild: windowsBuildFrom(release()),
+    pid: process.pid + 1,
+    ownPid: process.pid,
+    forced: somForced(process.env),
+  };
+  return {
+    window: decideSomCapture({ ...base, fonteKind: "window" }).audio !== null,
+    screen: decideSomCapture({ ...base, fonteKind: "screen" }).audio !== null,
+  };
+}
+
 function registerSomIpc(): void {
+  ipcMain.handle(IPC_CHANNELS.somSupport, somSupport);
   ipcMain.handle(IPC_CHANNELS.somLastCapture, (): SomCaptureReport | null => lastSomCapture?.report ?? null);
   ipcMain.handle(IPC_CHANNELS.somRetryWithoutSom, (): boolean => {
     const last = lastSomCapture;

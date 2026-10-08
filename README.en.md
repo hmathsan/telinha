@@ -59,8 +59,9 @@ deliberate.
 Worth saying before you download:
 
 - **Windows only.** macOS and Linux are on the roadmap, not in the present.
-- **Video, no audio.** Sound still goes through Discord, or wherever you already talk. It is the
-  next thing to be built.
+- **Sound on Windows 11 only.** The broadcast carries the app's sound (window) or the system's
+  sound (monitor) only on Windows 11. On Windows 10 it goes without sound, and the
+  "Transmitir com Som" switch shows up disabled.
 - **No chat, no recording, no accounts.** Not an oversight: it is scope. You already have chat.
 - **Seven people, two broadcasting.** That is not a timid number — it is the limit of a peer-to-
   peer design where every machine talks directly to every other one. Going beyond it would require
@@ -102,6 +103,13 @@ Unsigned installer. More info → Run anyway. See the install section.
 Usually an exclusive-fullscreen game. Switch the game to borderless windowed mode, or share the
 whole monitor instead of the window.
 
+**My friend hears themselves back when I share my monitor.**
+A monitor's sound is the whole system's sound, and that includes the voice of whoever is talking to
+you on Discord or another voice app. It goes back to them through your broadcast. Share the
+**game window** instead of the monitor: a window carries only that app's sound. If you do not need
+sound at all, turn off **Transmitir com Som** in the picker, or use **Silenciar Som** in the top bar
+while broadcasting.
+
 **The broadcast stutters, pixelates or looks blurry.**
 Open the diagnostics panel in the app and look at the **encoder in use**. If it is a software one
 (something like `OpenH264`), your graphics card is not helping and the CPU is doing the encoding
@@ -138,8 +146,8 @@ into guesswork.
 
 Roughly in order of importance, with no deadlines:
 
-- **Audio in the broadcast.** A game screen without sound is half a solution, and for many people
-  it is what decides between using this and not using it.
+- ~~**Audio in the broadcast.**~~ Done: the app's or the system's sound goes with the screen, on
+  Windows 11.
 - **macOS and Linux.**
 - **Say on screen when the connection needs a relay and none is available**, instead of simply
   failing to connect.

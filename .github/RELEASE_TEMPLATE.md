@@ -21,4 +21,5 @@ próximo início.
 
 ## Requisitos
 
-Windows 10 ou 11. A transmissão é de vídeo, sem áudio.
+Windows 10 ou 11. A transmissão leva o Som do aplicativo ou do sistema só no Windows 11; no
+Windows 10 ela vai sem Som.

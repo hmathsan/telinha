@@ -26,6 +26,10 @@ export function App() {
           warnings={sessao.warnings}
           isTransmitting={sessao.isTransmitting}
           localStream={sessao.localStream}
+          somStatus={sessao.somStatus}
+          somAtivo={sessao.somAtivo}
+          somStates={sessao.somStates}
+          onSetSomAtivo={sessao.setSomAtivo}
           onRespondEntry={sessao.respondEntry}
           onStartTransmitindo={sessao.startTransmitindo}
           onReleasePalco={sessao.releasePalco}

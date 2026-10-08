@@ -49,9 +49,34 @@ export const meshSignalPayloadSchema = z.discriminatedUnion("kind", [
     espectadorId: z.string(),
     mode: z.enum(["ice-restart", "recreate"]),
   }),
+  // Silenciar não aparece no fio: silêncio e "sem pacotes" não dizem ao Espectador que foi de
+  // propósito (spec 0010, "Mensagem som-state"). Transmissor → Espectador.
+  z.object({
+    kind: z.literal("som-state"),
+    transmissorId: z.string(),
+    espectadorId: z.string(),
+    ativo: z.boolean(),
+  }),
 ]);
 
 export type MeshSignalPayload = z.infer<typeof meshSignalPayloadSchema>;
+
+export type ParsedMeshSignal =
+  | { readonly ok: true; readonly payload: MeshSignalPayload }
+  | { readonly ok: false; readonly issues: unknown };
+
+/**
+ * Valida a forma e, para `som-state`, o remetente: só o próprio Transmissor diz se o Som dele está
+ * ativo. Qualquer outro remetente é descartado, e quem chama loga `mesh-signal-rejected`.
+ */
+export function parseMeshSignal(fromParticipanteId: string, raw: unknown): ParsedMeshSignal {
+  const parsed = meshSignalPayloadSchema.safeParse(raw);
+  if (!parsed.success) return { ok: false, issues: parsed.error.issues };
+  if (parsed.data.kind === "som-state" && parsed.data.transmissorId !== fromParticipanteId) {
+    return { ok: false, issues: "som-state-from-other-participante" };
+  }
+  return { ok: true, payload: parsed.data };
+}
 
 /** Chave de uma conexão da malha: uma por par (Transmissor, Espectador) — spec 0003, "Topologia". */
 export function connectionKey(transmissorId: string, espectadorId: string): string {

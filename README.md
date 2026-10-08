@@ -72,7 +72,7 @@ Compatível com **Windows 10 e 11**.
 Para alinhar expectativas antes do download:
 
 * **Exclusivo para Windows (por enquanto):** o suporte a macOS e Linux está em desenvolvimento. Acompanhe o [roadmap](#roadmap).
-* **Transmissão sem áudio:** atualmente compartilha apenas vídeo. O suporte a áudio do sistema/aplicação está [planejado](#roadmap).
+* **Som só no Windows 11:** a Fonte vai com o Som do aplicativo (janela) ou do sistema (monitor) apenas no Windows 11. No Windows 10 ela é transmitida sem Som, e o alternador "Transmitir com Som" aparece desabilitado.
 * **Sem chat integrado, gravação ou contas:** o foco do Telinha é exclusivamente o compartilhamento de tela leve e direto. Use seu app de comunicação habitual para conversar por voz ou texto, como o Discord.
 * **Limite rígido de 7 pessoas (2 transmitindo):** a arquitetura é 100% P2P direta via WebRTC mesh, sem servidor central intermediando o tráfego de mídia. Cada máquina transmite seus pacotes diretamente a todos os outros participantes. Aumentar esse limite multiplicaria o uso de banda e CPU, exigindo um servidor dedicado (SFU), o que vai contra a proposta de independência da ferramenta.
 
@@ -119,6 +119,14 @@ Encontrou algum comportamento inesperado? Veja como resolver os cenários mais c
   **Soluções:**
   - Altere a configuração de vídeo do jogo para **Janela sem Bordas (Borderless Windowed)**.
   - Ou opte por compartilhar a **tela inteira** em vez de selecionar apenas a janela da aplicação.
+</details>
+
+<details>
+  <summary><b>O amigo se ouve de volta quando eu transmito o monitor</b></summary>
+
+  O Som de um monitor é o Som do sistema inteiro, e isso inclui a voz de quem fala com você no Discord ou em outro app de voz. Ela volta para quem falou pela sua transmissão.
+
+  **Solução:** transmita a **janela do jogo** em vez do monitor. A janela leva só o Som daquele aplicativo. Se não precisar de Som, desligue **Transmitir com Som** no seletor, ou use **Silenciar Som** na barra durante a transmissão.
 </details>
 
 <details>
@@ -180,7 +188,7 @@ Se nenhuma das soluções acima resolveu o problema:
 | :---: | :--- | :--- | :---: |
 | ✅ | **Transmissão P2P** | Streaming direto de vídeo ponto a ponto, sem necessidade de servidor central. | `v1.0.0` |
 | ✅ | **Sessões sem autenticação** | Acesso rápido a salas apenas com código de convite, sem necessidade de login. | `v1.0.0` |
-| 🚧 | **Suporte a áudio** | Transmissão de áudio do sistema operacional ou de janelas específicas junto ao vídeo. | `v1.1.0` |
+| ✅ | **Suporte a áudio** | Transmissão de áudio do sistema operacional ou de janelas específicas junto ao vídeo (Windows 11). | `v1.1.0` |
 | 🚧 | **Multiplataforma (macOS & Linux)** | Compatibilidade e empacotamento nativo para macOS e distribuições Linux. | `v1.2.0` |
 | 🚧 | **Indicador de conexão relay (TURN)** | Alerta visual explícito quando uma conexão direta P2P falhar (NAT restrito) e exigir intermediário. | `v1.x` |
 | 🚧 | **Notificações de atualização** | Alerta visual no app para novas versões disponíveis em vez de updates silenciosos. | `v1.x` |

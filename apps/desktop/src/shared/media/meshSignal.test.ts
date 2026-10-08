@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { connectionKey, meshSignalPayloadSchema } from "./meshSignal.js";
+import { connectionKey, meshSignalPayloadSchema, parseMeshSignal } from "./meshSignal.js";
 
 describe("meshSignalPayloadSchema", () => {
   it("accepts a well-formed offer", () => {
@@ -52,6 +52,23 @@ describe("meshSignalPayloadSchema", () => {
   it("rejects a payload missing required fields", () => {
     const result = meshSignalPayloadSchema.safeParse({ kind: "offer", transmissorId: "t1" });
     expect(result.success).toBe(false);
+  });
+});
+
+describe("som-state", () => {
+  const somState = { kind: "som-state", transmissorId: "t1", espectadorId: "e1", ativo: false };
+
+  it("accepts a well-formed som-state from its Transmissor", () => {
+    expect(meshSignalPayloadSchema.safeParse(somState).success).toBe(true);
+    expect(parseMeshSignal("t1", somState)).toEqual({ ok: true, payload: somState });
+  });
+
+  it("rejects a som-state whose transmissorId is not the sender", () => {
+    expect(parseMeshSignal("intruso", somState).ok).toBe(false);
+  });
+
+  it("rejects a som-state without ativo", () => {
+    expect(parseMeshSignal("t1", { kind: "som-state", transmissorId: "t1", espectadorId: "e1" }).ok).toBe(false);
   });
 });
 
