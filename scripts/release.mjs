@@ -33,7 +33,9 @@ function run(command, args, options = {}) {
     cwd: repoRoot,
     encoding: "utf8",
     stdio: options.capture ? "pipe" : "inherit",
-    shell: process.platform === "win32",
+    // Só npm/npx precisam de shell no Windows (são .cmd). Com shell os argumentos não são
+    // citados, e `-m "Telinha 1.0.0"` do git tag se partiria em três.
+    shell: process.platform === "win32" && command !== "git",
     ...options,
   });
 }
