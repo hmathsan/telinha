@@ -1,5 +1,5 @@
 import { join } from "node:path";
-import { BrowserWindow } from "electron";
+import { app, BrowserWindow } from "electron";
 
 export function createMainWindow(): BrowserWindow {
   const win = new BrowserWindow({
@@ -7,6 +7,8 @@ export function createMainWindow(): BrowserWindow {
     height: 800,
     show: false,
     autoHideMenuBar: true,
+    // Empacotado, a janela herda o ícone do executável (electron-builder.yml); em dev, sem isto, viria o do Electron.
+    icon: app.isPackaged ? undefined : join(__dirname, "../../build/telinha.ico"),
     webPreferences: {
       preload: join(__dirname, "../preload/index.mjs"),
       sandbox: false,

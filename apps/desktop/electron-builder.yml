@@ -6,6 +6,7 @@ files:
   - out/**/*
   - package.json
 win:
+  icon: build/telinha.ico
   target: nsis
 nsis:
   oneClick: false
