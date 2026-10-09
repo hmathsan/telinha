@@ -120,8 +120,11 @@ pedidas pelo par. A escalada é avaliada no mesmo poll de 2 s do diagnóstico: `
 precisa envelhecer não tem evento que o anuncie, e um timer por conexão seria um relógio a mais
 para manter.
 
-**A camada 3 continua sendo reentrada manual.** Não construa recuperação de sessão — o roster
-reconhecendo "quem voltou" custa mais do que colar seis caracteres.
+**A camada 3 é a Retomada ([spec 0011](./0011-retomada.md)).** Cair com o app aberto — Wi-Fi,
+queda do sinalizador, reinício do Durable Object — volta à Sessão como a mesma pessoa, sem pedido de
+entrada, se for dentro de 60 s; a malha não é refeita, e a escada acima cuida de cada perna. Fechar
+o app continua exigindo reentrada manual, com o Código de Sessão e a aprovação do Anfitrião: fechar
+o app é Sair.
 
 ### Por que a escada, e não só `failed`
 
@@ -180,12 +183,6 @@ quem o manda para alguém é a pessoa.
 Ele existe porque a primeira Sessão que terminou sozinha num teste com várias pessoas foi
 impossível de diagnosticar: o app engolia o erro do WebSocket, o do SDP e o do encoder sem escrever
 nada em lugar nenhum.
-
-**Pendência conhecida.** O Anfitrião não reconecta: qualquer queda no caminho `create` encerra a
-Sessão para todos (`signalingClient.ts`, e o comentário lá explica por quê — reconectar trocaria o
-Código de Sessão de todo mundo sem aviso). É a explicação mais provável para uma Sessão que termina
-sozinha. A decisão de mudar isso espera o log do próximo teste, porque preservar identidade através
-da queda exige que o Durable Object conheça mais do que os sockets vivos.
 
 Esses dois últimos não são opcionais. Quando o teto de sessões do encoder de hardware estoura —
 num amigo de driver antigo, ou porque ele deixou o OBS aberto — o Chromium cai para OpenH264 por

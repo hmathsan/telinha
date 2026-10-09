@@ -5,9 +5,9 @@ body:
   - type: markdown
     attributes:
       value: |
-        Antes de abrir: a seção **Quando algo dá errado** do
-        [README](https://github.com/hmathsan/scrn-broadcast#quando-algo-dá-errado) cobre os casos
-        mais comuns — borda amarela, aviso do Windows na instalação, janela preta, transmissão
+        Antes de abrir: a seção **Solução de Problemas** do
+        [README](https://github.com/hmathsan/scrn-broadcast#-solução-de-problemas-troubleshooting) cobre os casos
+        mais comuns — aviso do Windows na instalação, janela preta, transmissão
         travando. Se for um deles, a resposta já está lá.
 
   - type: textarea

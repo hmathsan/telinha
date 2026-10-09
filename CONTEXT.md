@@ -33,9 +33,9 @@ O que um Transmissor escolheu enviar: um monitor inteiro ou a janela de uma úni
 _Avoid_: Tela, captura, display, source
 
 **Som**:
-O áudio que acompanha uma Fonte: o do aplicativo, quando a Fonte é uma janela; o do sistema
-inteiro, quando é um monitor. Nunca inclui o som do próprio app — se não há como tirá-lo, a
-Fonte vai sem Som. É parte da Fonte, não uma transmissão à parte, e o Transmissor pode enviá-la
+O áudio que acompanha uma Fonte: o do aplicativo, quando a Fonte é uma janela; o de um
+aplicativo escolhido ou o do sistema inteiro, quando é um monitor. Nunca inclui o som do próprio
+app — se não há como tirá-lo, a Fonte vai sem Som. É parte da Fonte, não uma transmissão à parte, e o Transmissor pode enviá-la
 sem ele.
 _Avoid_: Áudio do sistema, loopback, audio, trilha
 
@@ -43,6 +43,11 @@ _Avoid_: Áudio do sistema, loopback, audio, trilha
 O segredo curto que um Participante usa para entrar em uma Sessão existente. Nasce com a Sessão
 e morre com ela. É a única credencial que existe — não há contas, senhas nem lista de amigos.
 _Avoid_: Convite, link, token, ID de sala
+
+**Pedido de entrada**:
+O aviso, que chega só ao Anfitrião, de que alguém com o Código de Sessão quer entrar. Fica
+pendente até ser aceito, recusado ou cancelado por quem pediu.
+_Avoid_: Convite, solicitação, join request, notificação
 
 **Servidor**:
 Reservado exclusivamente para o sentido literal de "uma máquina que não é a de nenhum

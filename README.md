@@ -12,7 +12,7 @@ Encerrou a sessão, sumiu tudo — sem rastros em nenhum servidor.
 
 <br/>
 
-![O Telinha em uso](docs/assets/telinha.gif)
+<!-- ![O Telinha em uso](docs/assets/telinha.gif) -->
 
 </div>
 
@@ -61,7 +61,7 @@ Compatível com **Windows 10 e 11**.
 
 * **Até 7 pessoas por sessão**, com **até 2 transmissões simultâneas** (ideal para comparar dois jogos ou fluxos de trabalho lado a lado).
 * Quem assiste pode alternar livremente entre o **Modo Foco** (uma tela principal em destaque com miniaturas abaixo) ou o **Modo Grade** (todas as telas com o mesmo tamanho).
-* **Encerramento:** quando o criador da sala sai, a sessão se encerra para todos. O controle da sessão pertence sempre ao anfitrião.
+* **Encerramento:** quando o criador da sala sai, a sessão se encerra para todos. O controle da sessão pertence sempre ao anfitrião. Uma queda de conexão de até um minuto, dele ou de qualquer outra pessoa, não encerra nada: quem caiu volta sozinho, como a mesma pessoa.
 
 ![O Palco com uma transmissão](docs/assets/palco.png)
 
@@ -188,8 +188,8 @@ Se nenhuma das soluções acima resolveu o problema:
 | :---: | :--- | :--- | :---: |
 | ✅ | **Transmissão P2P** | Streaming direto de vídeo ponto a ponto, sem necessidade de servidor central. | `v1.0.0` |
 | ✅ | **Sessões sem autenticação** | Acesso rápido a salas apenas com código de convite, sem necessidade de login. | `v1.0.0` |
-| ✅ | **Suporte a áudio** | Transmissão de áudio do sistema operacional ou de janelas específicas junto ao vídeo (Windows 11). | `v1.1.0` |
-| 🚧 | **Multiplataforma (macOS & Linux)** | Compatibilidade e empacotamento nativo para macOS e distribuições Linux. | `v1.2.0` |
+| ✅ | **Suporte a áudio** | Transmissão de áudio do sistema operacional ou de janelas específicas junto ao vídeo (Windows 11). | `v1.0.0` |
+| 🚧 | **Multiplataforma (macOS & Linux)** | Compatibilidade e empacotamento nativo para macOS e distribuições Linux. | `v1.1.0` |
 | 🚧 | **Indicador de conexão relay (TURN)** | Alerta visual explícito quando uma conexão direta P2P falhar (NAT restrito) e exigir intermediário. | `v1.x` |
 | 🚧 | **Notificações de atualização** | Alerta visual no app para novas versões disponíveis em vez de updates silenciosos. | `v1.x` |
 | 🚧 | **Alternar aceleração por hardware** | Opção nas configurações para ativar/desativar aceleração de GPU facilmente. | `v1.x` |

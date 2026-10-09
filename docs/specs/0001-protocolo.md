@@ -6,7 +6,8 @@ versão e a máquina de estados da Sessão. Nada aqui importa Electron, React ou
 ## Handshake de versão
 
 `PROTOCOL_VERSION` é um inteiro que sobe quando qualquer mensagem muda de forma incompatível.
-Toda mensagem de entrada na Sessão (`create-sessao`, `join`) o carrega. O sinalizador recusa
+Está em **2** desde a Retomada ([spec 0011](./0011-retomada.md)). Toda mensagem de entrada na
+Sessão (`create-sessao`, `join`, `resume`) o carrega. O sinalizador recusa
 versão diferente da sua com `entry-refused { reason: 'incompatible-version' }`, e o app mostra
 "Atualize o aplicativo para entrar nesta Sessão".
 
@@ -32,14 +33,17 @@ Todas as mensagens são JSON com um campo `type` discriminante, validadas com Zo
 | `release-palco` | — | quem está no Palco |
 | `signal` | `toParticipanteId`, `payload` | qualquer Participante admitido |
 | `leave` | — | qualquer Participante admitido |
+| `resume` | `codigoDeSessao`, `participanteId`, `joinNonce`, `protocolVersion` | qualquer um, como primeira mensagem de uma conexão |
 
 `payload` do `signal` é opaco para o sinalizador: ele repassa sem inspecionar. É por ali que
 trafegam SDP e ICE candidates.
 
 `joinNonce` é um UUID sorteado uma vez por processo do app e reenviado em toda tentativa. Não é
-identidade e não autentica nada — serve para o sinalizador reconhecer que o pedido que chega vem do
-mesmo app do pedido anterior e substituir um pelo outro. Veja a
-[ADR 0010](../adr/0010-chave-de-pedido-de-entrada.md).
+identidade: no `join`, serve para o sinalizador reconhecer que o pedido que chega vem do mesmo app
+do pedido anterior e substituir um pelo outro ([ADR 0010](../adr/0010-chave-de-pedido-de-entrada.md)).
+No `resume`, é a prova de que quem volta é quem caiu — o `participanteId` sozinho está no roster de
+todo mundo. Nunca sai do app nem do sinalizador, e morre com o processo
+([ADR 0012](../adr/0012-retomada-com-a-sessao-no-storage.md)).
 
 ### Sinalizador → App
 
@@ -56,12 +60,19 @@ mesmo app do pedido anterior e substituir um pelo outro. Veja a
 | `signal` | `fromParticipanteId`, `payload` | o destinatário do `signal` |
 | `sessao-ended` | `reason` | todos |
 | `palco-denied` | `reason` | quem pediu o Palco |
+| `resumed` | `participanteId`, `roster`, `transmissores`, `entryRequests` | quem retomou |
+| `resume-refused` | `reason` | quem tentou |
 
 Motivos de `entry-refused`: `'incompatible-version'`, `'invalid-code'`, `'sessao-full'`,
 `'refused-by-anfitriao'`.
 Motivos de `participante-left`: `'left'`, `'expelled'`, `'disconnected'`.
 Motivos de `sessao-ended`: `'anfitriao-left'`.
 Motivo de `palco-denied`: `'palco-full'`.
+Motivo de `resume-refused`: `'not-resumable'`, o único — Sessão inexistente, Participante
+desconhecido e nonce errado são indistinguíveis de propósito.
+
+`entryRequests` do `resumed` é `{ participanteId, name }[]`: vem preenchido só para o Anfitrião e
+substitui a lista dele. Para os demais é `[]`.
 
 `palco-denied` não fazia parte da tabela original desta spec — foi adicionada porque a regra de
 `request-palco` abaixo descrevia uma recusa sem um tipo de mensagem para carregá-la.
@@ -71,7 +82,11 @@ Motivo de `palco-denied`: `'palco-full'`.
 Implementada como função pura: `(state, message) => { state, effects }`. Os efeitos são
 descrições de mensagens a enviar, não envios. É isso que permite testá-la sem rede.
 
-Estados de um Participante: `pending-approval` → `admitted` → `left`.
+Estados de um Participante: `pending-approval` → `admitted` ⇄ `fallen` → `left`.
+
+`fallen` é quem caiu e ainda está no prazo da Retomada. Continua na Sessão: aparece no roster
+(`entry-approved`, `resumed`) e conta para `MAX_PARTICIPANTES`. Não recebe efeitos — não tem
+socket —, e um `signal` para ele é descartado.
 
 Regras que a máquina impõe:
 
@@ -90,6 +105,22 @@ Regras que a máquina impõe:
   aprová-lo não faz nada.
 - `expel` e `respond-entry` vindos de quem não é o Anfitrião são descartados.
 - A saída do Anfitrião encerra a Sessão para todos.
+
+### Retomada
+
+Spec [0011](./0011-retomada.md). Funções puras que recebem `now`; nada de `Date.now()` no pacote.
+
+- `processFall`: um `admitted` cai para `fallen` sem efeito nenhum, o Anfitrião inclusive; um
+  `pending-approval` sai como numa desconexão.
+- `processResume`: com a mesma versão, o mesmo Código e o par `participanteId` + `joinNonce` de
+  alguém `admitted` ou `fallen`, volta a `admitted` e recebe `resumed` com o estado inteiro. Aceitar
+  a partir de `admitted` é de propósito: o fechamento do socket antigo pode não ter chegado. Fora
+  isso, `resume-refused` (ou `entry-refused 'incompatible-version'`) para o id da conexão.
+- `processRetomadaDeadlines`: quem está `fallen` há `RETOMADA_TIMEOUT_MS` (60 s) sai com
+  `participante-left { reason: 'disconnected' }`, liberando o Palco; se é o Anfitrião,
+  `sessao-ended { reason: 'anfitriao-left' }`.
+- Sem Anfitrião, os pedidos de entrada ficam pendentes; o `resumed` dele os entrega.
+- Quem foi expulso enquanto caído não retoma.
 
 ## Código de Sessão
 

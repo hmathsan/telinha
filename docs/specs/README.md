@@ -28,6 +28,11 @@ como identificadores no código.
   pela barra, mudo e volume por Transmissor, "Som segue o Palco". Sai na mesma release da 0009.
 - [0011 — Retomada](./0011-retomada.md): quem cai volta à Sessão como a mesma pessoa, Anfitrião
   incluído. Revisa trechos da 0001, 0002 e 0003; protocolo vai para a versão 2.
+- [0012 — Som de um aplicativo no monitor](./0012-som-de-um-aplicativo-no-monitor.md): monitor com o
+  Som de um app escolhido (o jogo, sem o Discord), e "Ativar Som" que recaptura quando o Som acabou.
+  Não depende da 0011.
+- [0013 — Apito do Pedido de entrada](./0013-apito-do-pedido-de-entrada.md): apito e barra de tarefas
+  piscando quando alguém pede para entrar. Não depende da 0011.
 
 ## Invariantes
 

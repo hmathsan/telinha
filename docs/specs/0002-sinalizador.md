@@ -5,7 +5,7 @@ Define `apps/signaler`: um Cloudflare Worker com um Durable Object por Sessão.
 ## Divisão de responsabilidade
 
 O Durable Object é **transporte e registro de conexões**. Ele repassa mensagens, arbitra as
-vagas de Palco e encerra a Sessão quando o Anfitrião desconecta.
+vagas de Palco e encerra a Sessão quando o Anfitrião sai, ou quando cai e não volta no prazo.
 
 O Anfitrião é a **autoridade sobre admissão**. O Durable Object nunca decide quem entra: recebe
 o `entrar`, encaminha `pedido-de-entrada` ao Anfitrião, e espera o `responder-entrada`.
@@ -16,16 +16,26 @@ isolado por construção e some sozinho. O `codigoDeSessao` é o nome do objeto.
 ## Comportamento
 
 - Um WebSocket por Participante. Use WebSocket Hibernation: não há cobrança de GB-s enquanto o
-  objeto hiberna, então uma Sessão parada entre trocas de SDP custa zero. Guarde o estado por
-  conexão com `serializeAttachment` (teto de 16 KB por conexão).
+  objeto hiberna, então uma Sessão parada entre trocas de SDP custa zero. O attachment de cada
+  conexão (`serializeAttachment`) carrega só `{ participanteId, codigoDeSessao }`.
+- O `SessaoState` inteiro, pedidos pendentes inclusive, vive no storage, na chave `"sessao"`. Grava
+  só quando o estado muda — um `signal` nunca grava — e a chave some quando a Sessão termina
+  ([ADR 0012](../adr/0012-retomada-com-a-sessao-no-storage.md)).
+- Ao carregar o estado, antes de qualquer coisa, reconcilia: quem não tem socket aberto caiu. É o
+  que detecta um reinício do objeto, que derruba os sockets sem emitir `webSocketClose`.
 - O Durable Object roda a mesma máquina de estados de `packages/protocol`. Ele é a instância
   autoritativa dela; os apps mantêm uma cópia para renderizar a UI.
 - O `payload` de `signal` é repassado sem inspeção.
-- Desconexão de qualquer Participante emite `participante-left { reason: 'disconnected' }` e
-  libera a vaga de Palco dele, se tinha.
-- Desconexão do Anfitrião emite `sessao-ended { reason: 'anfitriao-left' }` a todos e
-  destrói o objeto.
-- Uma Sessão sem nenhum Participante por 60 segundos se destrói.
+- Desconexão de qualquer Participante, o Anfitrião incluído, é uma queda: ninguém recebe nada, e a
+  vaga de Participante e a de Palco continuam dele por 60 s ([spec 0011](./0011-retomada.md)).
+  Quem volta nesse prazo com `resume` recupera o mesmo `participanteId`; o socket antigo, se ainda
+  estiver aberto, é fechado sem virar queda.
+- Vencido o prazo, a queda vira `participante-left { reason: 'disconnected' }` e libera o Palco;
+  a do Anfitrião vira `sessao-ended { reason: 'anfitriao-left' }` a todos.
+- `leave` explícito, inclusive do Anfitrião, tem efeito na hora.
+- Um alarme só por objeto: o próximo prazo de Retomada, ou a vigia de 5 minutos, o que vier antes.
+  A vigia encerra a Sessão de um objeto que reiniciou e para o qual ninguém voltou.
+- Terminada a Sessão, o objeto se limpa 60 segundos depois.
 
 ## Credenciais TURN e o desligador de gasto
 
@@ -84,7 +94,7 @@ instâncias (spec 0006).
 - `wrangler dev` sobe o sinalizador e um cliente WebSocket consegue criar e entrar numa Sessão.
 - O caminho de admissão está testado: entrar, o Anfitrião aprovar, e entrar e o Anfitrião recusar.
 - Estourar o limite de `/sessao/create` devolve `429` em vez de criar um Durable Object.
-- Anfitrião desconectando derruba a Sessão para todos.
+- Anfitrião caindo encerra a Sessão depois do prazo; saindo, na hora.
 - O oitavo Participante é recusado com `'sessao-full'`.
 - Com o limite de gasto zerado na configuração, o sinalizador devolve só STUN e não emite
   credencial TURN nenhuma.

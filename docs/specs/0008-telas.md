@@ -36,6 +36,10 @@ Nocturne em vez de um `<p>` colorido.
 
 ## Sessão
 
+Quem caiu do sinalizador vê uma faixa no topo da Sessão, *"Reconectando à Sessão…"*, sem número de
+tentativa, até a Retomada se confirmar ([spec 0011](./0011-retomada.md)). Só quem caiu a vê: para os
+demais, nada aconteceu.
+
 ### Palco
 
 Dois modos, e o alternador entre eles só aparece com **dois ou mais Transmissores** — com um só

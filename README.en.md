@@ -50,7 +50,8 @@ side by side. Whoever is watching chooses between one large screen with thumbnai
 of them the same size in a grid.
 
 When you, the person who created the session, leave, the session ends for everyone. That is
-deliberate.
+deliberate. A dropped connection of up to a minute — yours or anyone else's — ends nothing: whoever
+dropped comes back on their own, as the same person.
 
 ![The stage with a broadcast running](docs/assets/palco.png)
 

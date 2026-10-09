@@ -36,6 +36,27 @@ O PID sai do HWND em `source.id` (`window:<HWND>:0`) por `GetWindowThreadProcess
   ao `ApplicationFrameHost.exe`, provavelmente entregam silêncio — e captura bem-sucedida em silêncio
   é indistinguível de um app calado. Aceito na v1.
 
+## Por que não excluir o Discord
+
+A primeira ideia para o monitor sem o Discord seria capturar "o sistema inteiro menos o Discord".
+Não dá. A captura por processo do Windows (`AUDIOCLIENT_PROCESS_LOOPBACK_PARAMS`) recebe **um único**
+`TargetProcessId`, para incluir ou excluir aquele processo e os filhos dele. O `loopback` com
+`restrictOwnAudio` já gasta essa vaga para excluir o próprio Telinha, que é a invariante do Som.
+Não existe captura que exclua dois processos, e subtrair uma captura de outra não é confiável.
+
+As alternativas eram duas, e as duas foram rejeitadas:
+
+- **Excluir o Discord por um addon nativo.** Esse caminho devolveria o som do Telinha ao Som e
+  quebraria a invariante.
+- **Misturar várias capturas `applicationLoopback`.** Funciona, mas cada app vira uma captura
+  própria, e a mistura vai para o renderer, com a sincronia por nossa conta. É o próximo passo, se
+  aparecer um caso real com dois apps.
+
+O que se fez foi inverter o sentido: o monitor leva o Som de **um** aplicativo escolhido, pela mesma
+string `applicationLoopback:<pid>` das janelas. O Discord e o Telinha ficam de fora por construção. O
+"Sistema inteiro" continua disponível com o aviso da 0010
+([spec 0012](../specs/0012-som-de-um-aplicativo-no-monitor.md)).
+
 ## O que o log precisa mostrar
 
 Este caminho falha de formas que não lançam exceção, então nasce com log:
