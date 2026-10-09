@@ -132,7 +132,7 @@ run(
 console.log(`
 == ${tag} publicado como rascunho ==
 
-  1. Abra a release em https://github.com/hmathsan/scrn-broadcast/releases
+  1. Abra a release em https://github.com/hmathsan/telinha/releases
   2. Cole as notas a partir de .github/RELEASE_TEMPLATE.md
   3. Publique
 

@@ -7,7 +7,7 @@
 Abra o app, gere um código e envie no chat. Você aprova quem entra.  
 Encerrou a sessão, sumiu tudo — sem rastros em nenhum servidor.
 
-[![Download Windows](https://img.shields.io/github/v/release/hmathsan/scrn-broadcast?label=Download%20Windows&logo=windows&style=for-the-badge&color=blue)](https://github.com/hmathsan/scrn-broadcast/releases/latest)
+[![Download Windows](https://img.shields.io/github/v/release/hmathsan/telinha?label=Download%20Windows&logo=windows&style=for-the-badge&color=blue)](https://github.com/hmathsan/telinha/releases/latest)
 [![Licença: AGPL v3](https://img.shields.io/badge/licen%C3%A7a-AGPL_v3-blue?style=for-the-badge)](LICENSE)
 
 <br/>
@@ -34,7 +34,7 @@ O Telinha faz uma coisa só e faz bem: **a sua tela, com qualidade, direto na m�
 
 Compatível com **Windows 10 e 11**.
 
-1. Baixe o instalador na [página de versões mais recentes (Releases)](https://github.com/hmathsan/scrn-broadcast/releases/latest).
+1. Baixe o instalador na [página de versões mais recentes (Releases)](https://github.com/hmathsan/telinha/releases/latest).
 2. Execute o arquivo baixado.
 3. Concluída a instalação, **as próximas atualizações serão automáticas**.
 
@@ -178,7 +178,7 @@ Encontrou algum comportamento inesperado? Veja como resolver os cenários mais c
 Se nenhuma das soluções acima resolveu o problema:
 1. Exporte os dados da tela de **Diagnóstico**.
 2. Colete o arquivo `main.log`.
-3. [abra uma nova issue](https://github.com/hmathsan/scrn-broadcast/issues/new/choose) descrevendo o ocorrido e anexe ambos os arquivos.
+3. [abra uma nova issue](https://github.com/hmathsan/telinha/issues/new/choose) descrevendo o ocorrido e anexe ambos os arquivos.
 
 ## 🗺️ Roadmap
 

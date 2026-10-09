@@ -9,7 +9,7 @@ Modelo das notas de release. O script de release cria o rascunho; cole isto no c
 
 ## Instalação
 
-Baixe `Telinha Setup X.Y.Z.exe` abaixo e execute.
+Baixe `Telinha-Setup-X.Y.Z.exe` abaixo e execute.
 
 **O Windows vai mostrar "O Windows protegeu o seu computador".** Isso acontece porque o
 instalador não é assinado — um certificado de assinatura custa algumas centenas de dólares por

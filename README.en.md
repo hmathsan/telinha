@@ -26,7 +26,7 @@ of whoever is watching.** No account, no password, no history. The video travels
 
 ## Install
 
-Download the installer from the [latest release](https://github.com/hmathsan/scrn-broadcast/releases/latest)
+Download the installer from the [latest release](https://github.com/hmathsan/telinha/releases/latest)
 and run it. Windows 10 or 11.
 
 > **Windows will say "Windows protected your PC".**
@@ -139,7 +139,7 @@ go straight to `%APPDATA%\Telinha\logs`. The `main.log` file holds connection dr
 their code and reason, ICE failures, and the errors the app could not put on screen. None of it
 leaves your machine: you are the one who sends the file to anybody.
 
-If none of this helped, [open an issue](https://github.com/hmathsan/scrn-broadcast/issues/new/choose)
+If none of this helped, [open an issue](https://github.com/hmathsan/telinha/issues/new/choose)
 and **attach the exported diagnostics and `main.log`** — without them, almost any problem turns
 into guesswork.
 

@@ -5,7 +5,7 @@ coisa só, para grupos de até sete pessoas. Antes de escrever código, leia o q
 
 ## Antes de abrir um PR
 
-- **Bug:** abra uma [issue](https://github.com/hmathsan/scrn-broadcast/issues/new/choose) com o
+- **Bug:** abra uma [issue](https://github.com/hmathsan/telinha/issues/new/choose) com o
   `main.log` e o diagnóstico exportado. Para problemas de segurança, siga o [SECURITY.md](SECURITY.md).
 - **Funcionalidade nova:** abra uma issue antes, para conversar. Algumas coisas ficam de fora de
   propósito: chat, gravação, contas, mais de 7 pessoas e servidor de mídia. O porquê está nas
