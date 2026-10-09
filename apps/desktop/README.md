@@ -49,7 +49,7 @@ npm run release   # o mesmo build, mas publica em GitHub Releases (--publish alw
                   # Precisa de GH_TOKEN com permissão de escrita no repositório.
 ```
 
-`electron-builder.yml` aponta o `publish` para `hmathsan/scrn-broadcast` — o repositório é
+`electron-builder.yml` aponta o `publish` para `hmathsan/telinha` — o repositório é
 público por causa do auto-update (ver [ADR 0005](../../docs/adr/0005-repositorio-publico-por-causa-do-auto-update.md)).
 O blockmap (`*.exe.blockmap`) sai junto do instalador; é o que permite ao `electron-updater`
 baixar só o delta em vez dos ~100 MB inteiros a cada atualização.

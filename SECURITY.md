@@ -3,7 +3,7 @@
 ## Como reportar
 
 **Não abra uma issue pública.** Use o
-[reporte privado de vulnerabilidade](https://github.com/hmathsan/scrn-broadcast/security/advisories/new)
+[reporte privado de vulnerabilidade](https://github.com/hmathsan/telinha/security/advisories/new)
 do GitHub. Só quem mantém o projeto vê o relato.
 
 Inclua o que for possível:

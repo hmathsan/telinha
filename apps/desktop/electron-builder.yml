@@ -15,4 +15,4 @@ nsis:
 publish:
   provider: github
   owner: hmathsan
-  repo: scrn-broadcast
+  repo: telinha
