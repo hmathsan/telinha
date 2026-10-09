@@ -1,9 +1,17 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { randomUUID } from "node:crypto";
-import { MAX_PARTICIPANTES, MAX_TRANSMISSORES } from "./limits.js";
+import { MAX_PARTICIPANTES, MAX_TRANSMISSORES, RETOMADA_TIMEOUT_MS } from "./limits.js";
 import type { SessaoState } from "./stateMachine.js";
-import { createSessao, processLeave, processMessage } from "./stateMachine.js";
+import {
+  createSessao,
+  nextRetomadaDeadline,
+  processFall,
+  processLeave,
+  processMessage,
+  processResume,
+  processRetomadaDeadlines,
+} from "./stateMachine.js";
 import { PROTOCOL_VERSION } from "./version.js";
 import type { SignalerToAppMessage } from "./messages.js";
 
@@ -523,4 +531,270 @@ test("a ghost does not steal the last slot from its own rejoin", () => {
   assert.equal(messagesOfType(rejoined.effects, "entry-refused").length, 0, "the rejoin is not sessao-full");
   assert.equal(messagesOfType(rejoined.effects, "entry-request").length, 1);
   assert.equal(rejoined.state.participantes.has(ghost), false);
+});
+
+// ---------------------------------------------------------------------------
+// Retomada (spec 0011)
+// ---------------------------------------------------------------------------
+
+function resumeOf(state: SessaoState, participanteId: string) {
+  return {
+    type: "resume" as const,
+    codigoDeSessao: state.codigoDeSessao,
+    participanteId,
+    joinNonce: state.participantes.get(participanteId)!.joinNonce,
+    protocolVersion: PROTOCOL_VERSION,
+  };
+}
+
+test("processFall: an admitted participante becomes fallen, with no effects", () => {
+  const { state, anfitriaoId } = newSessao();
+  const { state: withBruno, participanteId: brunoId } = joinAndApprove(state, anfitriaoId, "Bruno");
+
+  const fell = processFall(withBruno, brunoId, 1000);
+
+  assert.equal(fell.effects.length, 0);
+  assert.equal(fell.state.participantes.get(brunoId)?.state, "fallen");
+  assert.equal(fell.state.participantes.get(brunoId)?.fallenAt, 1000);
+});
+
+test("processFall: the anfitriao also becomes fallen, and the sessao does not end", () => {
+  const { state, anfitriaoId } = newSessao();
+  const fell = processFall(state, anfitriaoId, 1000);
+  assert.equal(fell.effects.length, 0);
+  assert.equal(fell.state.ended, false);
+  assert.equal(fell.state.participantes.get(anfitriaoId)?.state, "fallen");
+});
+
+test("processFall: a pending participante is withdrawn like a disconnection", () => {
+  const { state, anfitriaoId } = newSessao();
+  const pendingId = randomUUID();
+  const pending = processMessage(state, pendingId, {
+    type: "join",
+    codigoDeSessao: state.codigoDeSessao,
+    name: "Bruno",
+    protocolVersion: PROTOCOL_VERSION,
+    joinNonce: randomUUID(),
+  });
+
+  const fell = processFall(pending.state, pendingId, 1000);
+
+  assert.equal(fell.state.participantes.has(pendingId), false);
+  const [withdrawn] = messagesOfType(fell.effects, "entry-request-withdrawn");
+  assert.equal(withdrawn?.participanteId, pendingId);
+  assert.deepEqual(fell.effects[0]?.toParticipanteIds, [anfitriaoId]);
+});
+
+test("processFall: fallen or unknown participante changes nothing", () => {
+  const { state, anfitriaoId } = newSessao();
+  const fell = processFall(state, anfitriaoId, 1000);
+  const again = processFall(fell.state, anfitriaoId, 2000);
+  assert.equal(again.state, fell.state);
+  assert.equal(again.effects.length, 0);
+  const unknown = processFall(state, randomUUID(), 1000);
+  assert.equal(unknown.state, state);
+  assert.equal(unknown.effects.length, 0);
+});
+
+test("an admitted participante falls and resumes: same state, and nobody else gets an effect", () => {
+  const { state, anfitriaoId } = newSessao();
+  const { state: withBruno, participanteId: brunoId } = joinAndApprove(state, anfitriaoId, "Bruno");
+  const connectionId = randomUUID();
+
+  const fell = processFall(withBruno, brunoId, 1000);
+  const resumed = processResume(fell.state, connectionId, resumeOf(withBruno, brunoId), 5000);
+
+  assert.deepEqual(resumed.state, withBruno);
+  assert.equal(resumed.effects.length, 1);
+  assert.deepEqual(resumed.effects[0]?.toParticipanteIds, [brunoId]);
+  const [message] = messagesOfType(resumed.effects, "resumed");
+  assert.equal(message?.participanteId, brunoId);
+  assert.deepEqual(new Set(message?.roster.map((p) => p.name)), new Set(["Ana", "Bruno"]));
+  assert.deepEqual(message?.entryRequests, [], "only the anfitriao gets entry requests");
+});
+
+test("processResume accepts from admitted: the old socket may not have closed yet", () => {
+  const { state, anfitriaoId } = newSessao();
+  const resumed = processResume(state, randomUUID(), resumeOf(state, anfitriaoId), 1000);
+  assert.equal(messagesOfType(resumed.effects, "resumed").length, 1);
+  assert.equal(resumed.state.participantes.get(anfitriaoId)?.state, "admitted");
+});
+
+test("processResume with an incompatible version is refused like a join", () => {
+  const { state, anfitriaoId } = newSessao();
+  const connectionId = randomUUID();
+  const fell = processFall(state, anfitriaoId, 1000);
+  const result = processResume(
+    fell.state,
+    connectionId,
+    { ...resumeOf(state, anfitriaoId), protocolVersion: PROTOCOL_VERSION + 1 },
+    2000,
+  );
+  assert.equal(result.state, fell.state);
+  assert.deepEqual(result.effects, [
+    { toParticipanteIds: [connectionId], message: { type: "entry-refused", reason: "incompatible-version" } },
+  ]);
+});
+
+test("processResume refuses wrong code, unknown participante, pending participante and wrong nonce alike", () => {
+  const { state, anfitriaoId } = newSessao();
+  const pendingId = randomUUID();
+  const pendingNonce = randomUUID();
+  const withPending = processMessage(state, pendingId, {
+    type: "join",
+    codigoDeSessao: state.codigoDeSessao,
+    name: "Bruno",
+    protocolVersion: PROTOCOL_VERSION,
+    joinNonce: pendingNonce,
+  }).state;
+  const fell = processFall(withPending, anfitriaoId, 1000).state;
+  const valid = resumeOf(fell, anfitriaoId);
+  const connectionId = randomUUID();
+
+  const attempts = [
+    { ...valid, codigoDeSessao: "ZZZZZZ" },
+    { ...valid, participanteId: randomUUID() },
+    { ...valid, participanteId: pendingId, joinNonce: pendingNonce },
+    { ...valid, joinNonce: randomUUID() },
+  ];
+  for (const attempt of attempts) {
+    const result = processResume(fell, connectionId, attempt, 2000);
+    assert.equal(result.state, fell);
+    assert.deepEqual(result.effects, [
+      { toParticipanteIds: [connectionId], message: { type: "resume-refused", reason: "not-resumable" } },
+    ]);
+  }
+});
+
+test("the anfitriao falls and the deadline expires: sessao-ended", () => {
+  const { state, anfitriaoId } = newSessao();
+  const { state: withBruno, participanteId: brunoId } = joinAndApprove(state, anfitriaoId, "Bruno");
+  const fell = processFall(withBruno, anfitriaoId, 1000);
+
+  const early = processRetomadaDeadlines(fell.state, 1000 + RETOMADA_TIMEOUT_MS - 1);
+  assert.equal(early.state, fell.state);
+  assert.equal(early.effects.length, 0);
+
+  const expired = processRetomadaDeadlines(fell.state, 1000 + RETOMADA_TIMEOUT_MS);
+  assert.equal(expired.state.ended, true);
+  assert.deepEqual(expired.effects, [
+    { toParticipanteIds: [brunoId], message: { type: "sessao-ended", reason: "anfitriao-left" } },
+  ]);
+});
+
+test("a fallen transmissor keeps the palco slot until the deadline, and loses it there", () => {
+  const { state, anfitriaoId } = newSessao();
+  const { state: withBruno, participanteId: brunoId } = joinAndApprove(state, anfitriaoId, "Bruno");
+  const onPalco = processMessage(withBruno, brunoId, { type: "request-palco" }).state;
+
+  const fell = processFall(onPalco, brunoId, 1000);
+  assert.deepEqual(fell.state.transmissores, [brunoId]);
+  assert.equal(nextRetomadaDeadline(fell.state), 1000 + RETOMADA_TIMEOUT_MS);
+
+  const expired = processRetomadaDeadlines(fell.state, 1000 + RETOMADA_TIMEOUT_MS);
+  assert.deepEqual(expired.state.transmissores, []);
+  assert.equal(expired.state.participantes.has(brunoId), false);
+  const [left] = messagesOfType(expired.effects, "participante-left");
+  assert.equal(left?.reason, "disconnected");
+  const [changed] = messagesOfType(expired.effects, "transmissores-changed");
+  assert.deepEqual(changed?.participanteIds, []);
+  for (const effect of expired.effects) assert.deepEqual(effect.toParticipanteIds, [anfitriaoId]);
+  assert.equal(nextRetomadaDeadline(expired.state), null);
+});
+
+test("nextRetomadaDeadline is the earliest fallen deadline, or null", () => {
+  const { state, anfitriaoId } = newSessao();
+  const { state: withBruno, participanteId: brunoId } = joinAndApprove(state, anfitriaoId, "Bruno");
+  assert.equal(nextRetomadaDeadline(withBruno), null);
+  const both = processFall(processFall(withBruno, brunoId, 5000).state, anfitriaoId, 3000).state;
+  assert.equal(nextRetomadaDeadline(both), 3000 + RETOMADA_TIMEOUT_MS);
+});
+
+test("an entry request with the anfitriao fallen stays pending, and the resumed of the anfitriao lists it", () => {
+  const { state, anfitriaoId } = newSessao();
+  const fell = processFall(state, anfitriaoId, 1000);
+  const pendingId = randomUUID();
+  const joined = processMessage(fell.state, pendingId, {
+    type: "join",
+    codigoDeSessao: state.codigoDeSessao,
+    name: "Bruno",
+    protocolVersion: PROTOCOL_VERSION,
+    joinNonce: randomUUID(),
+  });
+  assert.equal(joined.state.participantes.get(pendingId)?.state, "pending-approval");
+
+  const resumed = processResume(joined.state, randomUUID(), resumeOf(state, anfitriaoId), 2000);
+  const [message] = messagesOfType(resumed.effects, "resumed");
+  assert.deepEqual(message?.entryRequests, [{ participanteId: pendingId, name: "Bruno" }]);
+  assert.deepEqual(message?.roster, [{ id: anfitriaoId, name: "Ana" }], "a pending request is not in the roster");
+});
+
+test("fallen participantes count toward sessao-full", () => {
+  const { state, anfitriaoId } = newSessao();
+  let current = state;
+  let lastId = "";
+  for (let i = 0; i < MAX_PARTICIPANTES - 1; i++) {
+    const r = joinAndApprove(current, anfitriaoId, `P${i}`);
+    current = r.state;
+    lastId = r.participanteId;
+  }
+  current = processFall(current, lastId, 1000).state;
+
+  const refused = processMessage(current, randomUUID(), {
+    type: "join",
+    codigoDeSessao: current.codigoDeSessao,
+    name: "Eighth",
+    protocolVersion: PROTOCOL_VERSION,
+    joinNonce: randomUUID(),
+  });
+  const [message] = messagesOfType(refused.effects, "entry-refused");
+  assert.equal(message?.reason, "sessao-full");
+});
+
+test("entry-approved lists fallen participantes in the roster", () => {
+  const { state, anfitriaoId } = newSessao();
+  const { state: withBruno, participanteId: brunoId } = joinAndApprove(state, anfitriaoId, "Bruno");
+  const fell = processFall(withBruno, brunoId, 1000).state;
+  const carlosId = randomUUID();
+  const requested = processMessage(fell, carlosId, {
+    type: "join",
+    codigoDeSessao: state.codigoDeSessao,
+    name: "Carlos",
+    protocolVersion: PROTOCOL_VERSION,
+    joinNonce: randomUUID(),
+  });
+  const approved = processMessage(requested.state, anfitriaoId, {
+    type: "respond-entry",
+    participanteId: carlosId,
+    approved: true,
+  });
+  const [message] = messagesOfType(approved.effects, "entry-approved");
+  assert.deepEqual(new Set(message?.roster.map((p) => p.name)), new Set(["Ana", "Bruno", "Carlos"]));
+  const joined = approved.effects.find((e) => e.message.type === "participante-joined");
+  assert.deepEqual(joined?.toParticipanteIds, [anfitriaoId], "the fallen one has no socket to notify");
+});
+
+test("a signal to a fallen participante is discarded", () => {
+  const { state, anfitriaoId } = newSessao();
+  const { state: withBruno, participanteId: brunoId } = joinAndApprove(state, anfitriaoId, "Bruno");
+  const fell = processFall(withBruno, brunoId, 1000).state;
+  const result = processMessage(fell, anfitriaoId, { type: "signal", toParticipanteId: brunoId, payload: {} });
+  assert.equal(result.effects.length, 0);
+});
+
+test("the anfitriao expels a fallen participante, and then their resume is refused", () => {
+  const { state, anfitriaoId } = newSessao();
+  const { state: withBruno, participanteId: brunoId } = joinAndApprove(state, anfitriaoId, "Bruno");
+  const fell = processFall(withBruno, brunoId, 1000).state;
+
+  const expelled = processMessage(fell, anfitriaoId, { type: "expel", participanteId: brunoId });
+  assert.equal(expelled.state.participantes.has(brunoId), false);
+
+  const resumed = processResume(expelled.state, randomUUID(), resumeOf(withBruno, brunoId), 2000);
+  assert.equal(messagesOfType(resumed.effects, "resume-refused").length, 1);
+});
+
+test("processMessage rejects resume explicitly", () => {
+  const { state, anfitriaoId } = newSessao();
+  assert.throws(() => processMessage(state, anfitriaoId, resumeOf(state, anfitriaoId)));
 });

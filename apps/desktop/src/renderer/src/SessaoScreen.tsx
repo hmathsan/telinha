@@ -68,10 +68,11 @@ function connectionBanner(connectionState: SignalingConnectionState): string | n
     case "connecting":
       return "Conectando ao sinalizador…";
     case "reconnecting":
-      return `Conexão com o sinalizador caiu — tentando de novo (tentativa ${connectionState.attempt + 1})…`;
+      return "Reconectando à Sessão…";
     case "closed":
       return "Desconectado do sinalizador.";
     case "open":
+    case "rejoining":
       return null;
   }
 }

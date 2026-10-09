@@ -164,6 +164,19 @@ export function sessaoReducer(state: ClientSessaoState, action: ClientSessaoActi
         pendingEntryRequests: state.pendingEntryRequests.filter((r) => r.participanteId !== message.participanteId),
       };
 
+    case "resumed":
+      // Retomada (spec 0011): o sinalizador entrega o estado inteiro. `myId`, `screen` e o Código
+      // não mudam — é a mesma pessoa na mesma Sessão.
+      return {
+        ...state,
+        roster: message.roster,
+        transmissores: message.transmissores,
+        pendingEntryRequests: state.isAnfitriao ? message.entryRequests : state.pendingEntryRequests,
+      };
+
+    case "resume-refused":
+      return state; // o processo principal trata e anuncia `rejoining` ou `closed`.
+
     case "transmissores-changed":
       return { ...state, transmissores: message.participanteIds };
 

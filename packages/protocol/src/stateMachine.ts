@@ -1,4 +1,4 @@
-import { MAX_PARTICIPANTES, MAX_TRANSMISSORES } from "./limits.js";
+import { MAX_PARTICIPANTES, MAX_TRANSMISSORES, RETOMADA_TIMEOUT_MS } from "./limits.js";
 import type {
   AppToSignalerMessage,
   EntryRefusedReason,
@@ -7,7 +7,8 @@ import type {
 } from "./messages.js";
 import { PROTOCOL_VERSION } from "./version.js";
 
-export type ParticipanteState = "pending-approval" | "admitted" | "left";
+/** `fallen`: caiu e ainda está no prazo da Retomada (spec 0011). Continua na Sessão e no roster. */
+export type ParticipanteState = "pending-approval" | "admitted" | "fallen" | "left";
 
 export interface InternalParticipante {
   id: string;
@@ -18,6 +19,8 @@ export interface InternalParticipante {
    * Mesma chave == mesmo app pedindo de novo, e o pedido novo substitui o antigo.
    */
   joinNonce: string;
+  /** Quando caiu; `null` fora do estado `fallen`. */
+  fallenAt: number | null;
 }
 
 export interface SessaoState {
@@ -44,6 +47,13 @@ function admittedParticipantes(state: {
   participantes: ReadonlyMap<string, InternalParticipante>;
 }): InternalParticipante[] {
   return [...state.participantes.values()].filter((p) => p.state === "admitted");
+}
+
+/** Quem está na Sessão: admitidos e caídos. O roster e o limite de vagas contam os dois. */
+function rosterOf(state: SessaoState): { id: string; name: string }[] {
+  return [...state.participantes.values()]
+    .filter((p) => p.state === "admitted" || p.state === "fallen")
+    .map((p) => ({ id: p.id, name: p.name }));
 }
 
 function admittedIds(state: { participantes: ReadonlyMap<string, InternalParticipante> }): string[] {
@@ -96,6 +106,7 @@ export function createSessao(input: CreateSessaoInput): CreateSessaoResult {
     name: input.name,
     state: "admitted",
     joinNonce: input.joinNonce,
+    fallenAt: null,
   };
 
   const state: SessaoState = {
@@ -153,6 +164,10 @@ export function processMessage(
     case "create-sessao":
       // Only meaningful before the Sessao exists; discarded on an already-created Sessao.
       return noEffect(state);
+    case "resume":
+      // Quem retoma ainda não tem `participanteId` nesta conexão; o Durable Object chama
+      // `processResume` antes de chegar aqui.
+      throw new Error("resume is handled by processResume, not processMessage");
   }
 }
 
@@ -232,6 +247,7 @@ function processJoin(
     name: message.name,
     state: "pending-approval",
     joinNonce: message.joinNonce,
+    fallenAt: null,
   });
 
   return {
@@ -264,7 +280,7 @@ function processRespondEntry(
   if (message.approved) {
     participantes.set(target.id, { ...target, state: "admitted" });
     const newState = withParticipantes(state, participantes);
-    const roster = admittedParticipantes(newState).map((p) => ({ id: p.id, name: p.name }));
+    const roster = rosterOf(newState);
 
     return {
       state: newState,
@@ -486,4 +502,101 @@ export function processLeave(
   }
 
   return { state: newState, effects };
+}
+
+// ---------------------------------------------------------------------------
+// Retomada (spec 0011)
+// ---------------------------------------------------------------------------
+
+/** O sinalizador perdeu o socket de `participanteId` sem um `leave`. */
+export function processFall(state: SessaoState, participanteId: string, now: number): TransitionResult {
+  const participante = state.participantes.get(participanteId);
+  if (participante?.state === "pending-approval") {
+    return processLeave(state, participanteId, "disconnected");
+  }
+  if (participante?.state !== "admitted") {
+    return noEffect(state);
+  }
+  const participantes = new Map(state.participantes);
+  participantes.set(participanteId, { ...participante, state: "fallen", fallenAt: now });
+  return { state: withParticipantes(state, participantes), effects: [] };
+}
+
+/**
+ * `connectionId` recebe as recusas: quem foi recusado não tem `participanteId` na Sessão. Aceita a
+ * partir de `admitted` porque o fechamento do socket antigo pode ainda não ter chegado.
+ */
+export function processResume(
+  state: SessaoState,
+  connectionId: string,
+  message: Extract<AppToSignalerMessage, { type: "resume" }>,
+  _now: number,
+): TransitionResult {
+  if (message.protocolVersion !== state.protocolVersion) {
+    return refuseEntry(state, connectionId, "incompatible-version");
+  }
+  const participante = state.participantes.get(message.participanteId);
+  if (
+    message.codigoDeSessao !== state.codigoDeSessao ||
+    !participante ||
+    (participante.state !== "admitted" && participante.state !== "fallen") ||
+    participante.joinNonce !== message.joinNonce
+  ) {
+    return {
+      state,
+      effects: [{ toParticipanteIds: [connectionId], message: { type: "resume-refused", reason: "not-resumable" } }],
+    };
+  }
+
+  const participantes = new Map(state.participantes);
+  participantes.set(participante.id, { ...participante, state: "admitted", fallenAt: null });
+  const newState = withParticipantes(state, participantes);
+  const entryRequests =
+    participante.id === state.anfitriaoId
+      ? [...participantes.values()]
+          .filter((p) => p.state === "pending-approval")
+          .map((p) => ({ participanteId: p.id, name: p.name }))
+      : [];
+  return {
+    state: newState,
+    effects: [
+      {
+        toParticipanteIds: [participante.id],
+        message: {
+          type: "resumed",
+          participanteId: participante.id,
+          roster: rosterOf(newState),
+          transmissores: [...newState.transmissores],
+          entryRequests,
+        },
+      },
+    ],
+  };
+}
+
+/** Quem caiu e não voltou no prazo sai como numa desconexão; o Anfitrião, encerrando a Sessão. */
+export function processRetomadaDeadlines(state: SessaoState, now: number): TransitionResult {
+  let current = state;
+  const effects: Effect[] = [];
+  const expired = [...state.participantes.values()]
+    .filter((p) => p.state === "fallen" && p.fallenAt !== null && now >= p.fallenAt + RETOMADA_TIMEOUT_MS)
+    // O Anfitrião primeiro: se ele venceu, o resultado é só o `sessao-ended`.
+    .sort((a, b) => Number(b.id === state.anfitriaoId) - Number(a.id === state.anfitriaoId));
+  for (const p of expired) {
+    const result = processLeave(current, p.id, "disconnected");
+    current = result.state;
+    effects.push(...result.effects);
+    if (current.ended) break;
+  }
+  return { state: current, effects };
+}
+
+export function nextRetomadaDeadline(state: SessaoState): number | null {
+  let next: number | null = null;
+  for (const p of state.participantes.values()) {
+    if (p.state !== "fallen" || p.fallenAt === null) continue;
+    const deadline = p.fallenAt + RETOMADA_TIMEOUT_MS;
+    if (next === null || deadline < next) next = deadline;
+  }
+  return next;
 }

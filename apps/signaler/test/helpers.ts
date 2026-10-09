@@ -10,6 +10,7 @@ interface Inbox {
 }
 
 const inboxes = new WeakMap<WebSocket, Inbox>();
+const closes = new WeakMap<WebSocket, Promise<{ code: number; reason: string }>>();
 
 /**
  * Connects as a real client would: WS upgrade to the Worker, which routes to the DO. A message
@@ -39,6 +40,10 @@ export async function connect(path: string): Promise<WebSocket> {
       inbox.queue.push(message);
     }
   });
+  closes.set(
+    ws,
+    new Promise((resolve) => ws.addEventListener("close", (event: CloseEvent) => resolve({ code: event.code, reason: event.reason }))),
+  );
   ws.accept();
   return ws;
 }
@@ -63,4 +68,17 @@ export function nextMessage(ws: WebSocket, timeoutMs = 2000): Promise<SignalerTo
       resolve(message);
     });
   });
+}
+
+export function closeOf(ws: WebSocket): Promise<{ code: number; reason: string }> {
+  const closed = closes.get(ws);
+  if (!closed) throw new Error("closeOf called on a socket that was not opened via connect()");
+  return closed;
+}
+
+/** Nada chegou em `ms`. Um `nextMessage` que estoura o tempo não diz isso: ele consome a fila. */
+export async function expectNoMessage(ws: WebSocket, ms = 200): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, ms));
+  const queued = inboxes.get(ws)?.queue ?? [];
+  if (queued.length > 0) throw new Error(`expected no message, got ${JSON.stringify(queued)}`);
 }

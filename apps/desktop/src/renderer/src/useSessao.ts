@@ -121,6 +121,27 @@ export function useSessao() {
   );
 
   useEffect(() => {
+    /** `transmissores-changed` e a parte equivalente do `resumed`. Lê `stateRef` antes do dispatch. */
+    function applyTransmissores(mesh: MeshManager, participanteIds: readonly string[]): void {
+      const myId = stateRef.current.myId;
+      const wasTransmitting = myId ? stateRef.current.transmissores.includes(myId) : false;
+      const isTransmittingNow = myId ? participanteIds.includes(myId) : false;
+      mesh.handleTransmissoresChanged(participanteIds);
+
+      if (isTransmittingNow && !wasTransmitting && pendingStreamRef.current) {
+        const stream = pendingStreamRef.current;
+        pendingStreamRef.current = null;
+        const espectadorIds = stateRef.current.roster.map((p) => p.id).filter((id) => id !== myId);
+        mesh.startTransmitting(stream, espectadorIds);
+        setIsTransmitting(true);
+      } else if (!isTransmittingNow && wasTransmitting) {
+        mesh.stopTransmitting();
+        unwatchLocalTrack();
+        setIsTransmitting(false);
+        setLocalStream(null);
+      }
+    }
+
     function routeToMesh(message: SignalerToAppMessage): void {
       const mesh = meshRef.current;
       if (!mesh) return;
@@ -132,9 +153,9 @@ export function useSessao() {
           break;
 
         case "entry-approved": {
-          // participanteId diferente do anterior == reconexão com identidade nova (spec 0003,
-          // "Reconexão"): o sinalizador atual não tem como preservar a identidade através de uma
-          // queda de WebSocket, então a malha anterior fica órfã e é descartada.
+          // participanteId diferente do anterior == voltamos com identidade nova. A Retomada
+          // (spec 0011) evita isso, e o `rejoining` já descarta a malha; isto fica como rede de
+          // segurança: a malha anterior estaria órfã, e é descartada.
           let currentMesh = mesh;
           if (previousMyIdRef.current && previousMyIdRef.current !== message.participanteId) {
             logToMain("warn", "identity-changed-on-reconnect", {
@@ -166,26 +187,25 @@ export function useSessao() {
           mesh.handleParticipanteLeft(message.participanteId);
           break;
 
-        case "transmissores-changed": {
-          const myId = stateRef.current.myId;
-          const wasTransmitting = myId ? stateRef.current.transmissores.includes(myId) : false;
-          const isTransmittingNow = myId ? message.participanteIds.includes(myId) : false;
-          mesh.handleTransmissoresChanged(message.participanteIds);
-
-          if (isTransmittingNow && !wasTransmitting && pendingStreamRef.current) {
-            const stream = pendingStreamRef.current;
-            pendingStreamRef.current = null;
-            const espectadorIds = stateRef.current.roster.map((p) => p.id).filter((id) => id !== myId);
-            mesh.startTransmitting(stream, espectadorIds);
-            setIsTransmitting(true);
-          } else if (!isTransmittingNow && wasTransmitting) {
-            mesh.stopTransmitting();
-            unwatchLocalTrack();
-            setIsTransmitting(false);
-            setLocalStream(null);
+        case "resumed": {
+          // Retomada (spec 0011): a malha não é refeita, só alinhada ao roster que mudou enquanto
+          // estávamos caídos. `handleParticipanteJoined` não é idempotente — chamá-lo para quem
+          // já estava criaria uma segunda conexão —, então só vai para quem é novo.
+          const previous = new Set(stateRef.current.roster.map((p) => p.id));
+          const current = new Set(message.roster.map((p) => p.id));
+          for (const id of previous) {
+            if (!current.has(id)) mesh.handleParticipanteLeft(id);
           }
+          for (const id of current) {
+            if (!previous.has(id) && id !== message.participanteId) mesh.handleParticipanteJoined(id);
+          }
+          applyTransmissores(mesh, message.transmissores);
           break;
         }
+
+        case "transmissores-changed":
+          applyTransmissores(mesh, message.participanteIds);
+          break;
 
         case "palco-denied":
           if (pendingStreamRef.current) {
@@ -208,6 +228,22 @@ export function useSessao() {
     });
     const offState = window.scrnBroadcast.onConnectionState((connectionState) => {
       setConnectionState(connectionState);
+      if (connectionState.status === "rejoining") {
+        // A Retomada não aconteceu: quem éramos saiu da Sessão, e o pedido de entrada novo já foi
+        // (spec 0011). A malha falava por aquele `participanteId`; uma nova espera a aprovação.
+        meshRef.current?.close();
+        meshRef.current = createMesh();
+        previousMyIdRef.current = null;
+        unwatchLocalTrack();
+        setIsTransmitting(false);
+        setLocalStream(null);
+        setRemoteStreams(new Map());
+        setSomStates(new Map());
+        dispatch({
+          source: "connect-attempt",
+          connectAction: { kind: "join", name: connectionState.name, codigoDeSessao: connectionState.codigoDeSessao },
+        });
+      }
       if (connectionState.status === "closed") {
         logToMain("error", "signaling-closed", { reason: connectionState.reason });
         // O Durable Object fecha o WebSocket sem mensagem alguma ao expulsar ou ao encerrar uma

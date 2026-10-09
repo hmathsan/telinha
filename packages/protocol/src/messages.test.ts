@@ -16,6 +16,7 @@ test("every App -> Signaler message from the spec has a valid schema", () => {
     { type: "release-palco" },
     { type: "signal", toParticipanteId: idA, payload: { sdp: "..." } },
     { type: "leave" },
+    { type: "resume", codigoDeSessao: "ABCDEF", participanteId: idA, joinNonce: nonce, protocolVersion: 2 },
   ];
   for (const example of examples) {
     assert.deepEqual(appToSignalerMessageSchema.parse(example), example);
@@ -47,6 +48,14 @@ test("every Signaler -> App message from the spec has a valid schema", () => {
         { urls: "turn:turn.cloudflare.com:3478", username: "u", credential: "c" },
       ],
     },
+    {
+      type: "resumed",
+      participanteId: idA,
+      roster: [{ id: idA, name: "Ana" }],
+      transmissores: [idA],
+      entryRequests: [{ participanteId: idB, name: "Bruno" }],
+    },
+    { type: "resume-refused", reason: "not-resumable" },
   ];
   for (const example of examples) {
     assert.deepEqual(signalerToAppMessageSchema.parse(example), example);

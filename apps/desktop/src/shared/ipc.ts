@@ -71,6 +71,8 @@ export type SignalingConnectionState =
   | { readonly status: "connecting" }
   | { readonly status: "open" }
   | { readonly status: "reconnecting"; readonly attempt: number; readonly delayMs: number }
+  /** A Retomada foi recusada ou venceu, e o Espectador virou um pedido de entrada (spec 0011). */
+  | { readonly status: "rejoining"; readonly codigoDeSessao: string; readonly name: string }
   | { readonly status: "closed"; readonly reason: string };
 
 export interface DiagnosticsExportRequest {

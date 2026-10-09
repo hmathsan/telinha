@@ -2,11 +2,15 @@ import { DurableObject } from "cloudflare:workers";
 import {
   appToSignalerMessageSchema,
   createSessao,
+  nextRetomadaDeadline,
   PROTOCOL_VERSION,
-  processLeave,
+  processFall,
   processMessage,
+  processResume,
+  processRetomadaDeadlines,
   type Effect,
   type InternalParticipante,
+  type Resume,
   type SessaoState,
   type SignalerToAppMessage,
   type TransitionResult,
@@ -15,26 +19,43 @@ import type { Env } from "./env.js";
 import { buildIceServers } from "./turn.js";
 
 /**
- * Per-connection state via `serializeAttachment` (spec 0002). O SessaoState inteiro nunca fica
- * num campo em memória: cada mensagem o reconstrói a partir dos attachments das conexões vivas,
- * porque hibernação descarta campos de instância mas preserva WebSockets aceitos e seus
- * attachments.
+ * O attachment só diz de qual `participanteId` é cada socket (spec 0011). A Sessão inteira vive no
+ * storage, na chave `SESSAO_KEY`: hibernação e reinício descartam campos de instância, e um
+ * reinício também derruba os sockets — guardar a Sessão só nos attachments a destruía a cada queda
+ * da borda (ADR 0012). Antes de entrar na Sessão, o `participanteId` é um id aleatório da conexão.
  */
 interface ConnectionAttachment {
   readonly participanteId: string;
   readonly codigoDeSessao: string;
-  readonly name?: string;
-  /** Chave do pedido de entrada (spec 0001, `joinNonce`). Reconstruída junto do resto do estado. */
-  readonly joinNonce?: string;
-  readonly admissionState?: "pending-approval" | "admitted";
-  readonly isAnfitriao?: boolean;
-  readonly isTransmissor?: boolean;
 }
 
+interface StoredSessao extends Omit<SessaoState, "participantes"> {
+  readonly participantes: readonly InternalParticipante[];
+}
+
+const SESSAO_KEY = "sessao";
 const EMPTY_SESSAO_TIMEOUT_MS = 60_000;
+/** A vigia: encerra a Sessão de um objeto que reiniciou e para o qual ninguém voltou. */
+const VIGIA_INTERVAL_MS = 5 * 60_000;
+const WS_OPEN = 1;
 
 function attachmentOf(ws: WebSocket): ConnectionAttachment | null {
   return (ws.deserializeAttachment() as ConnectionAttachment | null) ?? null;
+}
+
+function serialize(state: SessaoState): string {
+  return JSON.stringify({ ...state, participantes: [...state.participantes.values()] } satisfies StoredSessao);
+}
+
+function deserialize(stored: string): SessaoState {
+  const parsed = JSON.parse(stored) as StoredSessao;
+  return { ...parsed, participantes: new Map(parsed.participantes.map((p) => [p.id, p])) };
+}
+
+/** O estado como estava no storage (`stored`) e o resultado da reconciliação aplicada sobre ele. */
+interface Loaded {
+  readonly stored: string;
+  readonly reconciled: TransitionResult;
 }
 
 export class SessaoDurableObject extends DurableObject<Env> {
@@ -71,12 +92,11 @@ export class SessaoDurableObject extends DurableObject<Env> {
       return;
     }
     const message = parsed.data;
-
-    const liveAttachments = this.ctx.getWebSockets().map(attachmentOf).filter((a): a is ConnectionAttachment => a !== null);
-    const anfitriaoAttachment = liveAttachments.find((a) => a.isAnfitriao);
+    const now = Date.now();
+    const loaded = await this.load(now);
 
     if (message.type === "create-sessao") {
-      if (anfitriaoAttachment) {
+      if (loaded) {
         return; // sessão já existe para este código; create-sessao só vale antes de existir
       }
       const result = createSessao({
@@ -89,30 +109,31 @@ export class SessaoDurableObject extends DurableObject<Env> {
       if (!result.state) {
         const byId = new Map([[attachment.participanteId, ws]]);
         for (const effect of result.effects) this.deliver(byId, effect);
-        this.stripAndClose(ws, attachment, 1008, "incompatible-version");
+        this.stripAndClose(ws, 1008, "incompatible-version");
         // Nenhuma Sessão chegou a existir para este código; sem isso, nada mais a agenda a limpeza.
-        await this.ctx.storage.setAlarm(Date.now() + EMPTY_SESSAO_TIMEOUT_MS);
+        await this.ctx.storage.setAlarm(now + EMPTY_SESSAO_TIMEOUT_MS);
         return;
       }
-      const emptyState = this.emptyState(attachment.codigoDeSessao);
-      await this.applyResult(emptyState, attachment.participanteId, {
-        state: result.state,
-        effects: result.effects,
-      });
+      await this.commit(now, null, this.emptyState(attachment.codigoDeSessao), result, attachment.participanteId);
       return;
     }
 
-    if (!anfitriaoAttachment) {
+    if (message.type === "resume") {
+      await this.handleResume(ws, attachment, message, loaded, now);
+      return;
+    }
+
+    if (!loaded) {
       if (message.type === "join") {
         this.send(ws, { type: "entry-refused", reason: "invalid-code" });
       }
-      this.stripAndClose(ws, attachment, 1008, "invalid-code");
+      this.stripAndClose(ws, 1008, "invalid-code");
       return;
     }
 
-    const state = this.reconstructState(liveAttachments, anfitriaoAttachment, attachment.codigoDeSessao);
+    const state = loaded.reconciled.state;
     const result = processMessage(state, attachment.participanteId, message);
-    await this.applyResult(state, attachment.participanteId, result);
+    await this.commit(now, loaded.stored, state, concat(loaded.reconciled, result), attachment.participanteId);
   }
 
   async webSocketClose(ws: WebSocket): Promise<void> {
@@ -124,32 +145,89 @@ export class SessaoDurableObject extends DurableObject<Env> {
   }
 
   async alarm(): Promise<void> {
-    if (this.ctx.getWebSockets().length === 0) {
-      await this.ctx.storage.deleteAll();
+    const now = Date.now();
+    const loaded = await this.load(now);
+    if (!loaded) {
+      if (this.ctx.getWebSockets().length === 0) {
+        await this.ctx.storage.deleteAll();
+      }
+      return;
     }
+    const result = processRetomadaDeadlines(loaded.reconciled.state, now);
+    await this.commit(now, loaded.stored, loaded.reconciled.state, concat(loaded.reconciled, result), null, true);
   }
 
+  /**
+   * Cair não tira ninguém da Sessão (spec 0011): a reconciliação, que exclui o socket que está
+   * fechando, é quem aplica o `processFall` dele — um `admitted` vira `fallen`, um pendente sai.
+   */
   private async handleDisconnect(ws: WebSocket): Promise<void> {
-    const attachment = attachmentOf(ws);
-    if (!attachment?.admissionState) {
-      return; // nunca chegou a entrar na Sessão, ou já foi processado por nós mesmos
+    if (!attachmentOf(ws)) {
+      return; // já foi descartado por nós mesmos (`stripAndClose`)
     }
+    const now = Date.now();
+    const loaded = await this.load(now, ws);
+    if (!loaded) return;
+    await this.commit(now, loaded.stored, loaded.reconciled.state, loaded.reconciled, null);
+  }
 
-    const liveAttachments = this.ctx
-      .getWebSockets()
-      .map(attachmentOf)
-      .filter((a): a is ConnectionAttachment => a !== null);
-    if (!liveAttachments.some((a) => a.participanteId === attachment.participanteId)) {
-      liveAttachments.push(attachment);
+  private async handleResume(
+    ws: WebSocket,
+    attachment: ConnectionAttachment,
+    message: Resume,
+    loaded: Loaded | null,
+    now: number,
+  ): Promise<void> {
+    const connectionId = attachment.participanteId;
+    if (!loaded) {
+      // Sem Sessão não há o que retomar. Não fecha: o Espectador manda `join` na mesma conexão.
+      this.send(ws, { type: "resume-refused", reason: "not-resumable" });
+      return;
     }
-    const anfitriaoAttachment = liveAttachments.find((a) => a.isAnfitriao);
-    if (!anfitriaoAttachment) {
+    const state = loaded.reconciled.state;
+    const result = processResume(state, connectionId, message, now);
+    if (!result.effects.some((e) => e.message.type === "resumed")) {
+      // Recusa (inclusive por versão): entregue direto ao id da conexão, sem fechar.
+      for (const effect of result.effects) this.deliver(new Map([[connectionId, ws]]), effect);
+      await this.commit(now, loaded.stored, state, loaded.reconciled, null);
       return;
     }
 
-    const state = this.reconstructState(liveAttachments, anfitriaoAttachment, attachment.codigoDeSessao);
-    const result = processLeave(state, attachment.participanteId, "disconnected");
-    await this.applyResult(state, attachment.participanteId, result);
+    // Antes dos efeitos: o socket antigo da mesma pessoa sai sem virar uma queda, e o novo passa a
+    // falar pelo `participanteId` retomado.
+    for (const other of this.ctx.getWebSockets()) {
+      if (other !== ws && attachmentOf(other)?.participanteId === message.participanteId) {
+        this.stripAndClose(other, 1000, "substituido-pela-retomada");
+      }
+    }
+    ws.serializeAttachment({
+      participanteId: message.participanteId,
+      codigoDeSessao: attachment.codigoDeSessao,
+    } satisfies ConnectionAttachment);
+
+    await this.commit(now, loaded.stored, state, concat(loaded.reconciled, result), message.participanteId);
+    // As credenciais TURN têm TTL de minutos; as da conexão anterior podem ter vencido.
+    await this.sendIceServersTo(ws, message.participanteId);
+  }
+
+  /**
+   * Carrega a Sessão do storage e a reconcilia com os sockets vivos: quem não tem socket aberto
+   * caiu. É o que detecta um reinício do objeto, que não emite `webSocketClose`.
+   */
+  private async load(now: number, closing?: WebSocket): Promise<Loaded | null> {
+    const stored = await this.ctx.storage.get<string>(SESSAO_KEY);
+    if (stored === undefined) return null;
+    const live = new Set<string>();
+    for (const ws of this.ctx.getWebSockets()) {
+      if (ws === closing || ws.readyState !== WS_OPEN) continue;
+      const a = attachmentOf(ws);
+      if (a) live.add(a.participanteId);
+    }
+    let reconciled: TransitionResult = { state: deserialize(stored), effects: [] };
+    for (const id of reconciled.state.participantes.keys()) {
+      if (!live.has(id)) reconciled = concat(reconciled, processFall(reconciled.state, id, now));
+    }
+    return { stored, reconciled };
   }
 
   private emptyState(codigoDeSessao: string): SessaoState {
@@ -163,37 +241,18 @@ export class SessaoDurableObject extends DurableObject<Env> {
     };
   }
 
-  private reconstructState(
-    attachments: readonly ConnectionAttachment[],
-    anfitriaoAttachment: ConnectionAttachment,
-    codigoDeSessao: string,
-  ): SessaoState {
-    const participantes = new Map<string, InternalParticipante>();
-    const transmissores: string[] = [];
-    for (const a of attachments) {
-      if (!a.admissionState) continue;
-      participantes.set(a.participanteId, {
-        id: a.participanteId,
-        name: a.name ?? "",
-        state: a.admissionState,
-        joinNonce: a.joinNonce ?? "",
-      });
-      if (a.isTransmissor) transmissores.push(a.participanteId);
-    }
-    return {
-      codigoDeSessao,
-      protocolVersion: PROTOCOL_VERSION,
-      anfitriaoId: anfitriaoAttachment.participanteId,
-      participantes,
-      transmissores,
-      ended: false,
-    };
-  }
-
-  private async applyResult(
+  /**
+   * Grava (só se o estado serializado mudou — o plano gratuito limita escritas, e um `signal` nunca
+   * muda nada), entrega os efeitos, fecha quem saiu e reagenda o alarme. `senderId` é quem mandou
+   * a mensagem, fechado se terminou fora da Sessão (recusa de `join`); `null` quando não há.
+   */
+  private async commit(
+    now: number,
+    stored: string | null,
     oldState: SessaoState,
-    senderId: string,
     result: TransitionResult,
+    senderId: string | null,
+    forceReschedule = false,
   ): Promise<void> {
     const { state: newState, effects } = result;
     const byId = new Map<string, WebSocket>();
@@ -202,20 +261,14 @@ export class SessaoDurableObject extends DurableObject<Env> {
       if (a) byId.set(a.participanteId, ws);
     }
 
-    for (const [id, participante] of newState.participantes) {
-      const ws = byId.get(id);
-      if (!ws) continue;
-      const prev = attachmentOf(ws);
-      if (!prev) continue;
-      ws.serializeAttachment({
-        participanteId: prev.participanteId,
-        codigoDeSessao: prev.codigoDeSessao,
-        name: participante.name,
-        joinNonce: participante.joinNonce,
-        admissionState: participante.state === "left" ? undefined : participante.state,
-        isAnfitriao: id === newState.anfitriaoId,
-        isTransmissor: newState.transmissores.includes(id),
-      } satisfies ConnectionAttachment);
+    const serialized = newState.ended ? null : serialize(newState);
+    const changed = serialized !== stored;
+    if (changed) {
+      if (serialized === null) {
+        await this.ctx.storage.delete(SESSAO_KEY);
+      } else {
+        await this.ctx.storage.put(SESSAO_KEY, serialized);
+      }
     }
 
     for (const effect of effects) {
@@ -223,8 +276,9 @@ export class SessaoDurableObject extends DurableObject<Env> {
     }
 
     for (const [id, participante] of newState.participantes) {
-      const wasAdmitted = oldState.participantes.get(id)?.state === "admitted";
-      if (participante.state === "admitted" && !wasAdmitted) {
+      const was = oldState.participantes.get(id)?.state;
+      // `fallen` -> `admitted` é a Retomada, que manda as credenciais ela mesma.
+      if (participante.state === "admitted" && was !== "admitted" && was !== "fallen") {
         const ws = byId.get(id);
         if (ws) await this.sendIceServersTo(ws, id);
       }
@@ -234,28 +288,21 @@ export class SessaoDurableObject extends DurableObject<Env> {
     for (const id of oldState.participantes.keys()) {
       if (!newState.participantes.has(id)) removedIds.add(id);
     }
-    if (!newState.participantes.has(senderId)) removedIds.add(senderId);
-
+    if (senderId !== null && !newState.participantes.has(senderId)) removedIds.add(senderId);
     for (const id of removedIds) {
       const ws = byId.get(id);
-      if (!ws) continue;
-      const prev = attachmentOf(ws);
-      if (prev) {
-        ws.serializeAttachment({
-          participanteId: prev.participanteId,
-          codigoDeSessao: prev.codigoDeSessao,
-        } satisfies ConnectionAttachment);
-      }
-      this.safeClose(ws, 1000, "removido-da-sessao");
+      if (ws) this.stripAndClose(ws, 1000, "removido-da-sessao");
     }
 
     if (newState.ended) {
       for (const ws of this.ctx.getWebSockets()) {
         this.safeClose(ws, 1000, "sessao-encerrada");
       }
-    }
-    if (newState.ended || newState.participantes.size === 0) {
-      await this.ctx.storage.setAlarm(Date.now() + EMPTY_SESSAO_TIMEOUT_MS);
+      await this.ctx.storage.setAlarm(now + EMPTY_SESSAO_TIMEOUT_MS);
+    } else if (changed || forceReschedule) {
+      const deadline = nextRetomadaDeadline(newState);
+      const vigia = now + VIGIA_INTERVAL_MS;
+      await this.ctx.storage.setAlarm(deadline === null ? vigia : Math.min(deadline, vigia));
     }
   }
 
@@ -279,11 +326,9 @@ export class SessaoDurableObject extends DurableObject<Env> {
     }
   }
 
-  private stripAndClose(ws: WebSocket, attachment: ConnectionAttachment, code: number, reason: string): void {
-    ws.serializeAttachment({
-      participanteId: attachment.participanteId,
-      codigoDeSessao: attachment.codigoDeSessao,
-    } satisfies ConnectionAttachment);
+  /** Sem attachment, o `webSocketClose` que vem a seguir não é tratado como queda. */
+  private stripAndClose(ws: WebSocket, code: number, reason: string): void {
+    ws.serializeAttachment(null);
     this.safeClose(ws, code, reason);
   }
 
@@ -294,4 +339,8 @@ export class SessaoDurableObject extends DurableObject<Env> {
       // já fechado
     }
   }
+}
+
+function concat(first: TransitionResult, second: TransitionResult): TransitionResult {
+  return { state: second.state, effects: [...first.effects, ...second.effects] };
 }

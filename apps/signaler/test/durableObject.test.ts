@@ -66,12 +66,12 @@ test("join recusado pelo anfitriao gera entry-refused", async () => {
   expect(refused).toEqual({ type: "entry-refused", reason: "refused-by-anfitriao" });
 });
 
-test("anfitriao desconectando derruba a Sessao para todos", async () => {
+test("anfitriao saindo derruba a Sessao para todos na hora", async () => {
   const { host, codigoDeSessao } = await createSessao("Ana");
   const { joiner } = await joinAndApprove(codigoDeSessao, host, "Bruno");
   await nextMessage(host); // participante-joined
 
-  host.close();
+  send(host, { type: "leave" });
   const ended = await nextMessage(joiner);
   expect(ended).toEqual({ type: "sessao-ended", reason: "anfitriao-left" });
 });
@@ -142,7 +142,7 @@ test("o terceiro pedido de Palco e negado com palco-full", async () => {
   expect(denied).toEqual({ type: "palco-denied", reason: "palco-full" });
 });
 
-test("um participante desconectando libera a vaga de Palco e notifica os demais", async () => {
+test("um Transmissor saindo libera a vaga de Palco e notifica os demais", async () => {
   const { host, codigoDeSessao } = await createSessao("Ana");
   const { joiner: bruno } = await joinAndApprove(codigoDeSessao, host, "Bruno");
   await nextMessage(host); // participante-joined
@@ -151,21 +151,20 @@ test("um participante desconectando libera a vaga de Palco e notifica os demais"
   const transmissoresChanged = await nextMessage(host);
   expect(transmissoresChanged.type).toBe("transmissores-changed");
 
-  bruno.close();
+  send(bruno, { type: "leave" });
   const left = await nextMessage(host);
   expect(left).toEqual({
     type: "participante-left",
     participanteId: expect.any(String),
-    reason: "disconnected",
+    reason: "left",
   });
   const palcoFreed = await nextMessage(host);
   expect(palcoFreed).toEqual({ type: "transmissores-changed", participanteIds: [] });
 });
 
 // O caminho exato do primeiro teste com varias pessoas: a mesma pessoa pedindo entrada duas vezes.
-// O `joinNonce` so sobrevive porque entra no attachment da conexao — o estado inteiro do Durable
-// Object e reconstruido dai a cada mensagem, e sem ele o segundo pedido viraria um Participante
-// novo em vez de substituir o anterior.
+// O `joinNonce` so sobrevive porque e guardado com a Sessao no storage — sem ele o segundo pedido
+// viraria um Participante novo em vez de substituir o anterior.
 test("dois pedidos com o mesmo joinNonce viram um so Participante", async () => {
   const { host, codigoDeSessao } = await createSessao("Ana");
   const joinNonce = crypto.randomUUID();

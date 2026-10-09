@@ -199,4 +199,44 @@ describe("sessaoReducer", () => {
 
     expect(state.pendingEntryRequests).toEqual([{ participanteId: "p3", name: "Caio" }]);
   });
+
+  it("on resumed, replaces roster, transmissores and the anfitriao's queue, keeping who and where", () => {
+    let state = sessaoReducer(initialClientSessaoState, {
+      source: "connect-attempt",
+      connectAction: { kind: "create", name: "Ana" },
+    });
+    state = signaler(state, { type: "sessao-created", codigoDeSessao: "ABC123", participanteId: "p1" });
+    state = signaler(state, { type: "entry-request", participanteId: "gone", name: "Velho" });
+
+    state = signaler(state, {
+      type: "resumed",
+      participanteId: "p1",
+      roster: [
+        { id: "p1", name: "Ana" },
+        { id: "p2", name: "Beto" },
+      ],
+      transmissores: ["p2"],
+      entryRequests: [{ participanteId: "p3", name: "Caio" }],
+    });
+
+    expect(state.roster.map((p) => p.id)).toEqual(["p1", "p2"]);
+    expect(state.transmissores).toEqual(["p2"]);
+    expect(state.pendingEntryRequests).toEqual([{ participanteId: "p3", name: "Caio" }]);
+    expect(state.myId).toBe("p1");
+    expect(state.screen).toBe("sessao");
+    expect(state.codigoDeSessao).toBe("ABC123");
+  });
+
+  it("on resumed, an espectador keeps an empty queue", () => {
+    const state = signaler(
+      signaler(initialClientSessaoState, {
+        type: "entry-approved",
+        participanteId: "p2",
+        roster: [{ id: "p2", name: "Beto" }],
+        transmissores: [],
+      }),
+      { type: "resumed", participanteId: "p2", roster: [{ id: "p2", name: "Beto" }], transmissores: [], entryRequests: [] },
+    );
+    expect(state.pendingEntryRequests).toEqual([]);
+  });
 });

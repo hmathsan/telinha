@@ -91,6 +91,18 @@ const leaveSchema = z.object({
   type: z.literal("leave"),
 });
 
+/**
+ * Retomada (spec 0011): a primeira mensagem de uma conexão nova de quem caiu. O `joinNonce` é a
+ * prova — o `participanteId` sozinho está no roster de todo mundo (ADR 0012).
+ */
+const resumeSchema = z.object({
+  type: z.literal("resume"),
+  codigoDeSessao: z.string().length(6),
+  participanteId: participanteIdSchema,
+  joinNonce: joinNonceSchema,
+  protocolVersion: z.number().int(),
+});
+
 export const appToSignalerMessageSchema = z.discriminatedUnion("type", [
   createSessaoSchema,
   joinSchema,
@@ -100,6 +112,7 @@ export const appToSignalerMessageSchema = z.discriminatedUnion("type", [
   releasePalcoSchema,
   signalSentSchema,
   leaveSchema,
+  resumeSchema,
 ]);
 
 export type AppToSignalerMessage = z.infer<typeof appToSignalerMessageSchema>;
@@ -112,6 +125,7 @@ export type RequestPalco = z.infer<typeof requestPalcoSchema>;
 export type ReleasePalco = z.infer<typeof releasePalcoSchema>;
 export type SignalSent = z.infer<typeof signalSentSchema>;
 export type Leave = z.infer<typeof leaveSchema>;
+export type Resume = z.infer<typeof resumeSchema>;
 
 // ---------------------------------------------------------------------------
 // Signaler -> App
@@ -142,6 +156,27 @@ const entryApprovedSchema = z.object({
   participanteId: participanteIdSchema,
   roster: z.array(participanteSchema),
   transmissores: z.array(participanteIdSchema),
+});
+
+const entryRequestEntrySchema = z.object({
+  participanteId: participanteIdSchema,
+  name: z.string().min(1),
+});
+
+/** `entryRequests` só vem preenchido para o Anfitrião, e substitui a fila dele (spec 0011). */
+const resumedSchema = z.object({
+  type: z.literal("resumed"),
+  participanteId: participanteIdSchema,
+  roster: z.array(participanteSchema),
+  transmissores: z.array(participanteIdSchema),
+  entryRequests: z.array(entryRequestEntrySchema),
+});
+
+// Um motivo só, de propósito: Sessão inexistente, Participante desconhecido e nonce errado são
+// indistinguíveis para quem tenta.
+const resumeRefusedSchema = z.object({
+  type: z.literal("resume-refused"),
+  reason: z.enum(["not-resumable"]),
 });
 
 const entryRefusedSchema = z.object({
@@ -203,6 +238,8 @@ export const signalerToAppMessageSchema = z.discriminatedUnion("type", [
   sessaoEndedSchema,
   palcoDeniedSchema,
   iceServersSchema,
+  resumedSchema,
+  resumeRefusedSchema,
 ]);
 
 export type SignalerToAppMessage = z.infer<typeof signalerToAppMessageSchema>;
@@ -219,5 +256,7 @@ export type SignalReceived = z.infer<typeof signalReceivedSchema>;
 export type SessaoEnded = z.infer<typeof sessaoEndedSchema>;
 export type PalcoDenied = z.infer<typeof palcoDeniedSchema>;
 export type IceServers = z.infer<typeof iceServersSchema>;
+export type Resumed = z.infer<typeof resumedSchema>;
+export type ResumeRefused = z.infer<typeof resumeRefusedSchema>;
 
 export type Participante = z.infer<typeof participanteSchema>;
