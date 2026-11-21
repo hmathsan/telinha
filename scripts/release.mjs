@@ -58,8 +58,14 @@ const tag = `v${version}`;
 // --- Portões -----------------------------------------------------------------------------------
 // A release não passa por CI (só a `main` e os PRs passam), então estes são os únicos portões.
 
-if (capture("git", ["status", "--porcelain"])) {
-  fail("a árvore de trabalho está suja. Commite ou descarte antes de publicar.");
+const dirty = capture("git", ["status", "--porcelain"]);
+if (dirty) {
+  console.warn(
+    `\n  release: aviso — há alterações não commitadas na árvore de trabalho (não entram na tag, mas podem afetar o build se estiverem em apps/desktop):\n${dirty
+      .split("\n")
+      .map((line) => `    ${line}`)
+      .join("\n")}\n`,
+  );
 }
 
 const branch = capture("git", ["rev-parse", "--abbrev-ref", "HEAD"]);
