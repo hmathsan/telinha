@@ -10,8 +10,8 @@ import { applyDevToolsPolicy } from "./devTools.js";
 import { openFontePicker } from "./sourcePicker.js";
 import { SignalingClient } from "./signalingClient.js";
 import { exportDiagnostics } from "./diagnosticsExport.js";
-import { startAutoUpdater } from "./autoUpdater.js";
-import { initLogging, log, logFromRenderer, openLogsFolder, watchWindow } from "./log.js";
+import { startAutoUpdater, type AutoUpdaterController } from "./autoUpdater.js";
+import { initLogging, log, logFromRenderer, logGpuFeatureStatus, openLogsFolder, watchWindow } from "./log.js";
 import {
   IPC_CHANNELS,
   type ConnectAction,
@@ -20,6 +20,7 @@ import {
   type SomCaptureReport,
   type SomSupport,
 } from "../shared/ipc.js";
+import type { UpdateStatus } from "../shared/updateState.js";
 import { somForced } from "../shared/hardening.js";
 import { decideSomCapture, hwndFromSourceId, windowsBuildFrom } from "../shared/media/somCapture.js";
 
@@ -39,6 +40,7 @@ const RETRY_WITHOUT_SOM_WINDOW_MS = 10_000;
 
 let mainWindow: BrowserWindow | null = null;
 let signalingClient: SignalingClient | null = null;
+let autoUpdaterController: AutoUpdaterController | null = null;
 
 /** A última escolha do seletor com áudio pedido, e quando foi feita. */
 let lastSomCapture: { readonly report: SomCaptureReport; readonly source: DesktopCapturerSource; readonly at: number } | null =
@@ -196,18 +198,48 @@ function registerClipboardIpc(): void {
   });
 }
 
+/** Pisca a barra de tarefas quando chega Pedido de entrada fora de foco (spec 0013). */
+function registerAttentionIpc(): void {
+  ipcMain.on(IPC_CHANNELS.requestAttention, () => {
+    if (!mainWindow || mainWindow.isFocused()) return;
+    mainWindow.flashFrame(true);
+    log.info("pedido-attention-requested");
+  });
+}
+
+/** Expõe estado e instalação do auto-updater para a faixa na interface (spec 0014). */
+function registerUpdateIpc(): void {
+  ipcMain.handle(IPC_CHANNELS.updateGetStatus, (): UpdateStatus => {
+    return autoUpdaterController?.getStatus() ?? { kind: "idle" };
+  });
+  ipcMain.on(IPC_CHANNELS.updateInstall, () => {
+    autoUpdaterController?.install();
+  });
+}
+
 app.whenReady().then(() => {
+  // Só é confiável depois que o processo de GPU inicializou (spec 0015, Parte 3).
+  logGpuFeatureStatus();
   registerDisplayMediaHandler();
   registerSomIpc();
   registerSessaoIpc();
   registerDiagnosticsIpc();
   registerSignalerUrlIpc();
   registerClipboardIpc();
+  registerAttentionIpc();
+  registerUpdateIpc();
   registerLogIpc();
-  startAutoUpdater();
   mainWindow = createMainWindow();
   applyDevToolsPolicy(mainWindow);
   watchWindow(mainWindow);
+  autoUpdaterController = startAutoUpdater({
+    onStatusChange: (status) => {
+      mainWindow?.webContents.send(IPC_CHANNELS.updateStatus, status);
+    },
+    beforeInstall: () => {
+      signalingClient?.leave();
+    },
+  });
 
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {
@@ -219,6 +251,7 @@ app.whenReady().then(() => {
 });
 
 app.on("window-all-closed", () => {
+  autoUpdaterController?.stop();
   signalingClient?.leave();
   if (process.platform !== "darwin") {
     app.quit();

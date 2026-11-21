@@ -10,12 +10,19 @@ Não depende de nenhuma spec pendente. Pode sair antes da [0011](./0011-retomada
 
 ## Comportamento
 
-- **Toca um apito por pedido novo,** com a janela em foco ou não. Quem está olhando ouve um apito
-  curto, e isso não atrapalha.
+- **Toca um apito por pedido novo,** com a janela em foco ou não, enquanto o apito não estiver
+  silenciado. Quem está olhando ouve um apito curto, e isso não atrapalha.
 - **Pisca na barra de tarefas** só quando a janela não está em foco, e para quando ela ganha foco.
+  Continua piscando mesmo com o apito silenciado, porque silenciar o som não deve esconder o aviso
+  visual.
 - **Não repete.** Um pedido pendente não volta a apitar.
-- **Não tem opção de desligar** nesta versão. Ela entra quando alguém pedir, e exige a primeira
-  preferência persistida do app.
+- **Botão de silenciar o apito na barra superior,** visível só para o Anfitrião (ao lado do botão de
+  Participantes): ícone de sino (`IconBell` quando ativo, `IconBellSlash` quando silenciado), com
+  `aria-pressed` e título descritivo ("Silenciar apito de entrada" / "Ativar apito de entrada").
+  - A preferência é persistida em `localStorage` (`scrn-broadcast:apito-muted`, `"1"` quando
+    silenciado; padrão ativo), da mesma forma que o nome na Entrada.
+  - Pedidos que chegam com o apito silenciado ainda entram no conjunto de `anunciados`: reativar o
+    apito não dispara apito retroativo para pedidos já pendentes.
 - **Só o Anfitrião ouve,** porque só ele recebe `entry-request`.
 - **O apito nunca vai no Som,** pela invariante da 0009: o Som nunca inclui o próprio app.
 
@@ -36,8 +43,10 @@ O `useSessao` guarda os anunciados num `useRef<Set<string>>`, que é zerado ao s
 mudança de `pendingEntryRequests`, ele:
 
 1. calcula `pedidosNovos`;
-2. se houver pelo menos um, apita **uma vez** e pede atenção, porque cinco pedidos no mesmo instante
-   não viram cinco apitos;
+2. se houver pelo menos um:
+   - se o apito não estiver silenciado, apita **uma vez** (cinco pedidos no mesmo instante não viram
+     cinco apitos) e loga `pedido-apito`; senão, loga `pedido-apito-silenciado`;
+   - pede atenção (`requestAttention`) em ambos os casos;
 3. acrescenta os ids ao conjunto.
 
 O conjunto, e não "o que não estava na lista anterior", é o que mantém a 0011 correta: quando o
@@ -80,6 +89,7 @@ Em `mainWindow.ts`, o evento `focus` chama `flashFrame(false)`.
 | Evento | Onde | Nível | Campos |
 | --- | --- | --- | --- |
 | `pedido-apito` | renderer | info | `novos` (quantos), `total` |
+| `pedido-apito-silenciado` | renderer | info | `novos`, `total` |
 | `pedido-apito-failed` | renderer | warn | `message` |
 | `pedido-attention-requested` | principal | info | — |
 
@@ -92,15 +102,18 @@ Os passos usam duas máquinas, ou duas instâncias.
 2. **Fora de foco.** Com outro app em foco, peça entrada. Toca um apito e o ícone pisca. Clicar no
    Telinha para o piscar.
 3. **Sem repetição.** Deixe o pedido pendente por 30 s. Não toca outro apito.
-4. **Rajada.** Três pedidos em sequência rápida dão três apitos, um por pedido. Pedidos no mesmo
+4. **Silenciado.** Silencie o apito na barra superior, tire o foco e peça entrada. Não toca apito,
+   mas a barra de tarefas continua piscando. Reative o apito com o pedido ainda pendente: não toca
+   apito retroativo. Feche e abra o app: a preferência continua salva.
+5. **Rajada.** Três pedidos em sequência rápida dão três apitos, um por pedido. Pedidos no mesmo
    instante dão um apito só.
-5. **Transmitindo.** Transmita o monitor com "Sistema inteiro" e peça entrada. O Anfitrião ouve o
+6. **Transmitindo.** Transmita o monitor com "Sistema inteiro" e peça entrada. O Anfitrião ouve o
    apito, e o Espectador não.
-6. **Retomada** (depois da 0011). Com um pedido pendente, derrube a rede do Anfitrião e restaure-a
-   dentro do prazo. O pedido continua lá, e o apito não toca de novo.
+7. **Retomada.** Com um pedido pendente, derrube a rede do Anfitrião e restaure-a dentro do prazo.
+   O pedido continua lá, e o apito não toca de novo.
 
 ## Pronto quando
 
 - `npm test` passa com os casos novos de `pedidosQueue.test.ts`.
 - `npm run typecheck` passa.
-- Os casos 1 a 5 do roteiro passam. O caso 6 é verificado quando a 0011 sair.
+- Os casos 1 a 7 do roteiro passam.

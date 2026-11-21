@@ -36,7 +36,7 @@ Compatível com **Windows 10 e 11**.
 
 1. Baixe o instalador na [página de versões mais recentes (Releases)](https://github.com/hmathsan/telinha/releases/latest).
 2. Execute o arquivo baixado.
-3. Concluída a instalação, **as próximas atualizações serão automáticas**.
+3. Concluída a instalação, **as próximas atualizações são baixadas automaticamente** em segundo plano, com um aviso discreto no app para reiniciar e instalar quando quiser.
 
 > [!NOTE]
 > **Aviso "O Windows protegeu o seu computador":**  
@@ -61,6 +61,7 @@ Compatível com **Windows 10 e 11**.
 
 * **Até 7 pessoas por sessão**, com **até 2 transmissões simultâneas** (ideal para comparar dois jogos ou fluxos de trabalho lado a lado).
 * Quem assiste pode alternar livremente entre o **Modo Foco** (uma tela principal em destaque com miniaturas abaixo) ou o **Modo Grade** (todas as telas com o mesmo tamanho).
+* **Economia de GPU ao jogar:** quem transmite pode **ocultar a própria prévia** local, e quem assiste pode **pausar o vídeo** (ou apenas minimizar o app — o vídeo pausa automaticamente após 2 s e volta na hora ao restaurar) mantendo o Som tocando normalmente.
 * **Encerramento:** quando o criador da sala sai, a sessão se encerra para todos. O controle da sessão pertence sempre ao anfitrião. Uma queda de conexão de até um minuto, dele ou de qualquer outra pessoa, não encerra nada: quem caiu volta sozinho, como a mesma pessoa.
 
 ![O Palco com uma transmissão](docs/assets/palco.png)
@@ -150,7 +151,7 @@ Encontrou algum comportamento inesperado? Veja como resolver os cenários mais c
 
   O anfitrião da sessão está utilizando uma versão mais recente do Telinha.
   
-  **Como resolver:** Feche o aplicativo completamente e abra-o novamente. A atualização será baixada e aplicada automaticamente.
+  **Como resolver:** Clique em **Reiniciar e instalar** na faixa de atualização do app (ou feche o aplicativo completamente e abra-o novamente). A atualização é baixada e aplicada automaticamente.
 </details>
 
 <details>
@@ -191,7 +192,7 @@ Se nenhuma das soluções acima resolveu o problema:
 | ✅ | **Suporte a áudio** | Transmissão de áudio do sistema operacional ou de janelas específicas junto ao vídeo (Windows 11). | `v1.0.0` |
 | 🚧 | **Multiplataforma (macOS & Linux)** | Compatibilidade e empacotamento nativo para macOS e distribuições Linux. | `v1.1.0` |
 | 🚧 | **Indicador de conexão relay (TURN)** | Alerta visual explícito quando uma conexão direta P2P falhar (NAT restrito) e exigir intermediário. | `v1.x` |
-| 🚧 | **Notificações de atualização** | Alerta visual no app para novas versões disponíveis em vez de updates silenciosos. | `v1.x` |
+| ✅ | **Notificações de atualização** | Aviso discreto no app quando uma nova versão está baixando ou pronta para instalar, com botão para reiniciar. | `v1.1.0` |
 | 🚧 | **Alternar aceleração por hardware** | Opção nas configurações para ativar/desativar aceleração de GPU facilmente. | `v1.x` |
 | 💡 | **Servidor de sinalização customizável** | Possibilidade de configurar URLs de *signaling servers* privados diretamente pela interface. | `v2.x` |
 | 🔬 | **Múltiplos participantes por sessão** | *Em pesquisa:* Suporte a múltiplos pares/transmissões por sala (investigando viabilidade via topologia mesh vs. SFU). | `TBD` |

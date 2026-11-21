@@ -59,6 +59,13 @@ interface Loaded {
 }
 
 export class SessaoDurableObject extends DurableObject<Env> {
+  constructor(ctx: DurableObjectState, env: Env) {
+    super(ctx, env);
+    // Responde `"pong"` a `"ping"` direto na borda sem acordar o Durable Object da hibernação
+    // nem consumir escrita no storage (spec 0015, parte 4).
+    this.ctx.setWebSocketAutoResponse(new WebSocketRequestResponsePair("ping", "pong"));
+  }
+
   async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url);
     const codigoDeSessao = url.searchParams.get("codigoDeSessao");

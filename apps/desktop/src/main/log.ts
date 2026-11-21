@@ -44,6 +44,19 @@ export function initLogging(): void {
   });
 }
 
+/**
+ * Registra o status de aceleração de GPU após `app.whenReady()` — `app.getGPUFeatureStatus()` só
+ * é confiável depois que o processo de GPU inicializou (spec 0015, Parte 3).
+ */
+export function logGpuFeatureStatus(): void {
+  const status = app.getGPUFeatureStatus();
+  log.info("gpu-feature-status", {
+    video_encode: status.video_encode,
+    video_decode: status.video_decode,
+    gpu_compositing: status.gpu_compositing,
+  });
+}
+
 /** Os eventos de janela que hoje somem: `loadURL`/`loadFile` falham com `void` em `mainWindow.ts`. */
 export function watchWindow(window: BrowserWindow): void {
   window.webContents.on("did-fail-load", (_event, errorCode, errorDescription, validatedURL) => {

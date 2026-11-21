@@ -72,6 +72,26 @@ describe("som-state", () => {
   });
 });
 
+describe("video-pause", () => {
+  const videoPause = { kind: "video-pause", transmissorId: "t1", espectadorId: "e1", paused: true };
+
+  it("accepts a well-formed video-pause from its Espectador", () => {
+    expect(meshSignalPayloadSchema.safeParse(videoPause).success).toBe(true);
+    expect(parseMeshSignal("e1", videoPause)).toEqual({ ok: true, payload: videoPause });
+    const resume = { ...videoPause, paused: false };
+    expect(parseMeshSignal("e1", resume)).toEqual({ ok: true, payload: resume });
+  });
+
+  it("rejects a video-pause whose espectadorId is not the sender", () => {
+    expect(parseMeshSignal("intruso", videoPause).ok).toBe(false);
+    expect(parseMeshSignal("t1", videoPause).ok).toBe(false);
+  });
+
+  it("rejects a video-pause without paused", () => {
+    expect(parseMeshSignal("e1", { kind: "video-pause", transmissorId: "t1", espectadorId: "e1" }).ok).toBe(false);
+  });
+});
+
 describe("connectionKey", () => {
   it("keys a connection by the (transmissor, espectador) pair, not by an unordered pair", () => {
     expect(connectionKey("a", "b")).not.toBe(connectionKey("b", "a"));

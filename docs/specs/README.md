@@ -30,9 +30,14 @@ como identificadores no código.
   incluído. Revisa trechos da 0001, 0002 e 0003; protocolo vai para a versão 2.
 - [0012 — Som de um aplicativo no monitor](./0012-som-de-um-aplicativo-no-monitor.md): monitor com o
   Som de um app escolhido (o jogo, sem o Discord), e "Ativar Som" que recaptura quando o Som acabou.
-  Não depende da 0011.
-- [0013 — Apito do Pedido de entrada](./0013-apito-do-pedido-de-entrada.md): apito e barra de tarefas
-  piscando quando alguém pede para entrar. Não depende da 0011.
+  *(Adiada — fora da 1.1.0.)*
+- [0013 — Apito do Pedido de entrada](./0013-apito-do-pedido-de-entrada.md): apito, botão de
+  silenciar na barra e barra de tarefas piscando quando alguém pede para entrar.
+- [0014 — Notificação de atualização no app](./0014-notificacao-de-atualizacao.md): faixa de
+  progresso e botão "Reiniciar e instalar" sobre o download automático do `electron-updater`.
+- [0015 — Desempenho de GPU, diagnóstico e estabilidade da Sessão](./0015-desempenho-e-estabilidade.md):
+  correção do vigia de `<video>`, limites de captura, ocultar prévia, pausa de vídeo na malha,
+  diagnóstico de GPU e heartbeat no sinalizador para a Retomada.
 
 ## Invariantes
 

@@ -3,9 +3,13 @@ import type { AppToSignalerMessage, SignalerToAppMessage } from "@scrn-broadcast
 import { initialClientSessaoState, sessaoReducer } from "../../shared/clientSessaoState.js";
 import type { ConnectAction, SignalingConnectionState } from "../../shared/ipc.js";
 import type { SomStatus } from "../../shared/media/somCapture.js";
+import { pedidosNovos } from "../../shared/pedidosQueue.js";
+import { tocarApito } from "./media/apito.js";
 import { MeshManager, type ConnectionDiagnostics, type MeshManagerHandlers } from "./media/meshManager.js";
 import { captureFonte } from "./media/capture.js";
 import { logToMain } from "./log.js";
+
+const APITO_MUTED_STORAGE_KEY = "scrn-broadcast:apito-muted";
 
 export interface QualityWarning {
   readonly id: string;
@@ -75,9 +79,17 @@ export function useSessao() {
   const [somAtivo, setSomAtivoState] = useState(true);
   /** O último `som-state` de cada Transmissor remoto. Ausente = nada recebido. */
   const [somStates, setSomStates] = useState<Map<string, boolean>>(new Map());
+  /** Preferência do apito de Pedido de entrada (spec 0013). Ativo por padrão. */
+  const [apitoSilenciado, setApitoSilenciadoState] = useState<boolean>(
+    () => localStorage.getItem(APITO_MUTED_STORAGE_KEY) === "1",
+  );
 
   const stateRef = useRef(state);
   stateRef.current = state;
+  const apitoSilenciadoRef = useRef(apitoSilenciado);
+  apitoSilenciadoRef.current = apitoSilenciado;
+  /** Ids de pedidos já anunciados nesta Sessão — zerado ao sair, preservado na Retomada (spec 0013). */
+  const anunciadosRef = useRef<Set<string>>(new Set());
   const pendingStreamRef = useRef<MediaStream | null>(null);
   /** Remove o listener de `ended` do track capturado; `null` quando não há captura em curso. */
   const localTrackWatchRef = useRef<(() => void) | null>(null);
@@ -234,6 +246,7 @@ export function useSessao() {
         meshRef.current?.close();
         meshRef.current = createMesh();
         previousMyIdRef.current = null;
+        anunciadosRef.current.clear();
         unwatchLocalTrack();
         setIsTransmitting(false);
         setLocalStream(null);
@@ -250,6 +263,7 @@ export function useSessao() {
         // Sessão já terminada (durableObject.ts: safeClose) — sem isto, o app expulso ficava
         // parado na última tela, sem saber por quê, até clicar em "Sair" manualmente.
         meshRef.current?.close();
+        anunciadosRef.current.clear();
         unwatchLocalTrack();
         setIsTransmitting(false);
         setLocalStream(null);
@@ -266,6 +280,32 @@ export function useSessao() {
   }, []);
 
   useEffect(() => {
+    if (state.screen === "entry") {
+      anunciadosRef.current.clear();
+    }
+  }, [state.screen]);
+
+  // Apito e piscar na barra de tarefas para cada Pedido de entrada novo nesta Sessão (spec 0013).
+  useEffect(() => {
+    if (!state.isAnfitriao) return;
+    const novos = pedidosNovos(anunciadosRef.current, state.pendingEntryRequests);
+    if (novos.length === 0) return;
+
+    const total = state.pendingEntryRequests.length;
+    if (apitoSilenciadoRef.current) {
+      logToMain("info", "pedido-apito-silenciado", { novos: novos.length, total });
+    } else {
+      tocarApito();
+      logToMain("info", "pedido-apito", { novos: novos.length, total });
+    }
+    window.scrnBroadcast.requestAttention();
+
+    for (const pedido of novos) {
+      anunciadosRef.current.add(pedido.participanteId);
+    }
+  }, [state.isAnfitriao, state.pendingEntryRequests]);
+
+  useEffect(() => {
     return () => {
       meshRef.current?.close();
       localTrackWatchRef.current?.();
@@ -277,6 +317,7 @@ export function useSessao() {
       meshRef.current?.close();
       meshRef.current = createMesh();
       previousMyIdRef.current = null;
+      anunciadosRef.current.clear();
       dispatch({ source: "connect-attempt", connectAction: action });
       window.scrnBroadcast.connect(action);
     },
@@ -324,11 +365,22 @@ export function useSessao() {
     setSomAtivoState(ativo);
   }, []);
 
+  const setApitoSilenciado = useCallback((silenciado: boolean) => {
+    setApitoSilenciadoState(silenciado);
+    if (silenciado) localStorage.setItem(APITO_MUTED_STORAGE_KEY, "1");
+    else localStorage.removeItem(APITO_MUTED_STORAGE_KEY);
+  }, []);
+
+  const setRemoteVideoPaused = useCallback((paused: boolean, reason: "hidden" | "manual") => {
+    meshRef.current?.setRemoteVideoPaused(paused, reason);
+  }, []);
+
   const releasePalco = useCallback(() => send({ type: "release-palco" }), [send]);
   const expel = useCallback((participanteId: string) => send({ type: "expel", participanteId }), [send]);
 
   const leave = useCallback(() => {
     meshRef.current?.close();
+    anunciadosRef.current.clear();
     unwatchLocalTrack();
     window.scrnBroadcast.leave();
     dispatch({ source: "reset" });
@@ -377,7 +429,10 @@ export function useSessao() {
     somStatus: localStream ? somStatus : null,
     somAtivo,
     somStates,
+    apitoSilenciado,
     setSomAtivo,
+    setApitoSilenciado,
+    setRemoteVideoPaused,
     connect,
     respondEntry,
     startTransmitindo,

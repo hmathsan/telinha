@@ -12,6 +12,21 @@ export const DISABLE_HW_ACCEL_ENV_VAR = "SCRN_BROADCAST_DISABLE_HW_ACCEL";
 /** Chave que libera o Som abaixo do Windows 11. Ver `somForced`. */
 export const SOM_FORCE_ENV_VAR = "SCRN_BROADCAST_FORCE_SOM";
 
+/** Chave que simula uma atualização em desenvolvimento. Ver `fakeUpdateVersion`. */
+export const FAKE_UPDATE_ENV_VAR = "SCRN_BROADCAST_FAKE_UPDATE";
+
+/** Devolve a versão simulada só fora do app empacotado; em release é sempre `null`. */
+export function fakeUpdateVersion(
+  isPackaged: boolean,
+  env: Record<string, string | undefined>,
+): string | null {
+  if (isPackaged) {
+    return null;
+  }
+  const value = env[FAKE_UPDATE_ENV_VAR]?.trim();
+  return value && value.length > 0 ? value : null;
+}
+
 /**
  * Libera a captura de Som no Windows 10 (spec 0009, "A válvula para testar o Windows 10"). Existe
  * para o roteiro manual descobrir, sem recompilar, se as capturas funcionam lá — não é recurso para

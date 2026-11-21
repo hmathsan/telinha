@@ -57,6 +57,14 @@ export const meshSignalPayloadSchema = z.discriminatedUnion("kind", [
     espectadorId: z.string(),
     ativo: z.boolean(),
   }),
+  // Pausa o envio de vídeo sob demanda ou ao minimizar sem renegociar e sem afetar o Som
+  // (spec 0015, Parte 2.3). Espectador → Transmissor.
+  z.object({
+    kind: z.literal("video-pause"),
+    transmissorId: z.string(),
+    espectadorId: z.string(),
+    paused: z.boolean(),
+  }),
 ]);
 
 export type MeshSignalPayload = z.infer<typeof meshSignalPayloadSchema>;
@@ -66,14 +74,19 @@ export type ParsedMeshSignal =
   | { readonly ok: false; readonly issues: unknown };
 
 /**
- * Valida a forma e, para `som-state`, o remetente: só o próprio Transmissor diz se o Som dele está
- * ativo. Qualquer outro remetente é descartado, e quem chama loga `mesh-signal-rejected`.
+ * Valida a forma e o remetente dos sinais autenticados por papel:
+ * - `som-state`: só o próprio Transmissor diz se o Som dele está ativo.
+ * - `video-pause`: só o próprio Espectador pede pausa/retomada de vídeo na sua perna.
+ * Qualquer outro remetente é descartado, e quem chama loga `mesh-signal-rejected`.
  */
 export function parseMeshSignal(fromParticipanteId: string, raw: unknown): ParsedMeshSignal {
   const parsed = meshSignalPayloadSchema.safeParse(raw);
   if (!parsed.success) return { ok: false, issues: parsed.error.issues };
   if (parsed.data.kind === "som-state" && parsed.data.transmissorId !== fromParticipanteId) {
     return { ok: false, issues: "som-state-from-other-participante" };
+  }
+  if (parsed.data.kind === "video-pause" && parsed.data.espectadorId !== fromParticipanteId) {
+    return { ok: false, issues: "video-pause-from-other-participante" };
   }
   return { ok: true, payload: parsed.data };
 }

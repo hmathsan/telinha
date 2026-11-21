@@ -14,6 +14,11 @@ export interface ConnectionDiagnosticsSnapshot {
   readonly frameWidth: number | null;
   readonly frameHeight: number | null;
   readonly encoderImplementation: string | null;
+  readonly decoderImplementation: string | null;
+  readonly powerEfficientEncoder: boolean | null;
+  readonly powerEfficientDecoder: boolean | null;
+  readonly avgEncodeTimeMs: number | null;
+  readonly avgDecodeTimeMs: number | null;
   readonly qualityLimitationReason: string | null;
   /** RTT do par de candidatos vencedor, em milissegundos — a coluna RTT do diagnóstico (0008). */
   readonly roundTripTimeMs: number | null;
@@ -45,12 +50,18 @@ interface PriorByteSample {
   readonly timestampMs: number;
 }
 
+interface PriorFrameTimeSample {
+  readonly totalTimeSec: number;
+  readonly frames: number;
+}
+
 /**
  * Mantém a amostra anterior de bytes por conexão para calcular bitrate por delta — o
  * `getStats()` só dá contadores cumulativos (spec 0003, "Diagnóstico").
  */
 export class DiagnosticsSampler {
   private readonly priorByKey = new Map<string, PriorByteSample>();
+  private readonly priorFrameTimeByKey = new Map<string, PriorFrameTimeSample>();
 
   sample(connectionKey: string, stats: StatsReportLike): ConnectionDiagnosticsSnapshot {
     const selectedPair = findSelectedCandidatePair(stats);
@@ -76,6 +87,14 @@ export class DiagnosticsSampler {
       somInbound?.bytesReceived !== undefined
         ? this.bitrateFor(`${connectionKey}:som-in`, somInbound.bytesReceived, somInbound.timestamp ?? Date.now())
         : null;
+    const avgEncodeTimeMs =
+      outbound?.totalEncodeTime !== undefined && outbound?.framesEncoded !== undefined
+        ? this.avgFrameTimeMsFor(`${connectionKey}:encode`, outbound.totalEncodeTime, outbound.framesEncoded)
+        : null;
+    const avgDecodeTimeMs =
+      inbound?.totalDecodeTime !== undefined && inbound?.framesDecoded !== undefined
+        ? this.avgFrameTimeMsFor(`${connectionKey}:decode`, inbound.totalDecodeTime, inbound.framesDecoded)
+        : null;
 
     const framesPerSecond = outbound?.framesPerSecond ?? inbound?.framesPerSecond;
     const frameWidth = outbound?.frameWidth ?? inbound?.frameWidth;
@@ -89,6 +108,11 @@ export class DiagnosticsSampler {
       frameWidth: frameWidth ?? null,
       frameHeight: frameHeight ?? null,
       encoderImplementation: outbound?.encoderImplementation ?? null,
+      decoderImplementation: inbound?.decoderImplementation ?? null,
+      powerEfficientEncoder: outbound?.powerEfficientEncoder ?? null,
+      powerEfficientDecoder: inbound?.powerEfficientDecoder ?? null,
+      avgEncodeTimeMs,
+      avgDecodeTimeMs,
       qualityLimitationReason: outbound?.qualityLimitationReason ?? null,
       roundTripTimeMs:
         selectedPair?.currentRoundTripTime !== undefined ? Math.round(selectedPair.currentRoundTripTime * 1000) : null,
@@ -108,6 +132,8 @@ export class DiagnosticsSampler {
     this.priorByKey.delete(`${connectionKey}:in`);
     this.priorByKey.delete(`${connectionKey}:som-out`);
     this.priorByKey.delete(`${connectionKey}:som-in`);
+    this.priorFrameTimeByKey.delete(`${connectionKey}:encode`);
+    this.priorFrameTimeByKey.delete(`${connectionKey}:decode`);
   }
 
   private bitrateFor(key: string, bytes: number, timestampMs: number): number | null {
@@ -118,6 +144,16 @@ export class DiagnosticsSampler {
     const deltaMs = timestampMs - prior.timestampMs;
     if (deltaMs <= 0 || deltaBytes < 0) return null;
     return Math.round((deltaBytes * 8 * 1000) / deltaMs);
+  }
+
+  private avgFrameTimeMsFor(key: string, totalTimeSec: number, frames: number): number | null {
+    const prior = this.priorFrameTimeByKey.get(key);
+    this.priorFrameTimeByKey.set(key, { totalTimeSec, frames });
+    if (!prior) return null;
+    const deltaTimeSec = totalTimeSec - prior.totalTimeSec;
+    const deltaFrames = frames - prior.frames;
+    if (deltaFrames <= 0 || deltaTimeSec < 0) return null;
+    return Math.round((deltaTimeSec / deltaFrames) * 1000 * 10) / 10;
   }
 }
 

@@ -185,6 +185,79 @@ describe("DiagnosticsSampler", () => {
       url: "turn:example.com",
     });
   });
+
+  it("reports decoderImplementation, powerEfficient flags, and avgEncodeTimeMs / avgDecodeTimeMs deltas", () => {
+    const sampler = new DiagnosticsSampler();
+    const out1 = outboundStats({
+      powerEfficientEncoder: true,
+      totalEncodeTime: 1.0,
+      framesEncoded: 100,
+    });
+    const out2 = outboundStats({
+      powerEfficientEncoder: false,
+      totalEncodeTime: 1.15,
+      framesEncoded: 130,
+    });
+
+    const firstOut = sampler.sample("tx1", out1);
+    expect(firstOut.powerEfficientEncoder).toBe(true);
+    expect(firstOut.avgEncodeTimeMs).toBeNull();
+    expect(firstOut.decoderImplementation).toBeNull();
+    expect(firstOut.powerEfficientDecoder).toBeNull();
+    expect(firstOut.avgDecodeTimeMs).toBeNull();
+
+    // 0.15s / 30 frames * 1000 == 5 ms
+    const secondOut = sampler.sample("tx1", out2);
+    expect(secondOut.powerEfficientEncoder).toBe(false);
+    expect(secondOut.avgEncodeTimeMs).toBe(5);
+
+    // Zero new frames produces null instead of NaN/Infinity
+    const stalledOut = sampler.sample("tx1", out2);
+    expect(stalledOut.avgEncodeTimeMs).toBeNull();
+
+    const rxStats = (totalDecodeTime: number, framesDecoded: number, powerEfficientDecoder: boolean) =>
+      statsMap({
+        inbound1: {
+          type: "inbound-rtp",
+          kind: "video",
+          decoderImplementation: "ExternalDecoder",
+          powerEfficientDecoder,
+          totalDecodeTime,
+          framesDecoded,
+        },
+      });
+
+    const firstRx = sampler.sample("rx1", rxStats(0.5, 50, true));
+    expect(firstRx.decoderImplementation).toBe("ExternalDecoder");
+    expect(firstRx.powerEfficientDecoder).toBe(true);
+    expect(firstRx.avgDecodeTimeMs).toBeNull();
+
+    // 0.045s / 30 frames * 1000 == 1.5 ms
+    const secondRx = sampler.sample("rx1", rxStats(0.545, 80, false));
+    expect(secondRx.powerEfficientDecoder).toBe(false);
+    expect(secondRx.avgDecodeTimeMs).toBe(1.5);
+  });
+
+  it("forgets encode and decode frame-time samples on forget()", () => {
+    const sampler = new DiagnosticsSampler();
+    sampler.sample(
+      "conn1",
+      statsMap({
+        out: { type: "outbound-rtp", kind: "video", totalEncodeTime: 2.0, framesEncoded: 200 },
+        in: { type: "inbound-rtp", kind: "video", totalDecodeTime: 1.0, framesDecoded: 100 },
+      }),
+    );
+    sampler.forget("conn1");
+    const afterForget = sampler.sample(
+      "conn1",
+      statsMap({
+        out: { type: "outbound-rtp", kind: "video", totalEncodeTime: 2.2, framesEncoded: 220 },
+        in: { type: "inbound-rtp", kind: "video", totalDecodeTime: 1.2, framesDecoded: 120 },
+      }),
+    );
+    expect(afterForget.avgEncodeTimeMs).toBeNull();
+    expect(afterForget.avgDecodeTimeMs).toBeNull();
+  });
 });
 
 describe("didFallBackToSoftwareEncoder", () => {

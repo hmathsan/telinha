@@ -2,9 +2,11 @@ import { describe, expect, it } from "vitest";
 import {
   DEVTOOLS_ENV_VAR,
   DISABLE_HW_ACCEL_ENV_VAR,
+  FAKE_UPDATE_ENV_VAR,
   SOM_FORCE_ENV_VAR,
   devToolsAllowed,
   disabledHardwareAccelSwitches,
+  fakeUpdateVersion,
   somForced,
 } from "./hardening.js";
 
@@ -57,5 +59,22 @@ describe("disabledHardwareAccelSwitches", () => {
 
   it("só o valor '1' desliga", () => {
     expect(disabledHardwareAccelSwitches({ [DISABLE_HW_ACCEL_ENV_VAR]: "0" })).toEqual([]);
+  });
+});
+
+describe("fakeUpdateVersion", () => {
+  it("devolve null no app empacotado, mesmo com a variável definida", () => {
+    expect(fakeUpdateVersion(true, { [FAKE_UPDATE_ENV_VAR]: "1.1.0" })).toBeNull();
+  });
+
+  it("devolve null em desenvolvimento quando a variável está ausente ou vazia", () => {
+    expect(fakeUpdateVersion(false, {})).toBeNull();
+    expect(fakeUpdateVersion(false, { [FAKE_UPDATE_ENV_VAR]: "" })).toBeNull();
+    expect(fakeUpdateVersion(false, { [FAKE_UPDATE_ENV_VAR]: "   " })).toBeNull();
+  });
+
+  it("devolve a versão aparada em desenvolvimento", () => {
+    expect(fakeUpdateVersion(false, { [FAKE_UPDATE_ENV_VAR]: "1.1.0" })).toBe("1.1.0");
+    expect(fakeUpdateVersion(false, { [FAKE_UPDATE_ENV_VAR]: "  1.2.0-rc.1  " })).toBe("1.2.0-rc.1");
   });
 });

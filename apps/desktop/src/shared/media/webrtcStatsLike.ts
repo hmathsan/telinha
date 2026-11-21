@@ -23,6 +23,13 @@ export interface StatsLike {
   readonly frameWidth?: number;
   readonly frameHeight?: number;
   readonly encoderImplementation?: string;
+  readonly decoderImplementation?: string;
+  readonly powerEfficientEncoder?: boolean;
+  readonly powerEfficientDecoder?: boolean;
+  readonly totalEncodeTime?: number;
+  readonly framesEncoded?: number;
+  readonly totalDecodeTime?: number;
+  readonly framesDecoded?: number;
   readonly qualityLimitationReason?: string;
   readonly currentRoundTripTime?: number;
   readonly audioLevel?: number;

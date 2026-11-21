@@ -1,5 +1,6 @@
 import type { AppToSignalerMessage, SignalerToAppMessage } from "@scrn-broadcast/protocol";
 import type { SomCaptureDecision } from "./media/somCapture.js";
+import type { UpdateStatus } from "./updateState.js";
 
 /**
  * Nomes de canal IPC entre `main` e `renderer`. O WebSocket de sinalização vive no processo
@@ -17,6 +18,7 @@ export const IPC_CHANNELS = {
   logWrite: "log:write",
   signalerUrl: "app:signaler-url",
   clipboardWrite: "app:clipboard-write",
+  requestAttention: "window:request-attention",
   pickerOpen: "picker:open",
   pickerSources: "picker:sources",
   pickerChoose: "picker:choose",
@@ -24,6 +26,9 @@ export const IPC_CHANNELS = {
   somLastCapture: "som:last-capture",
   somRetryWithoutSom: "som:retry-without-som",
   somSupport: "som:support",
+  updateGetStatus: "update:get-status",
+  updateStatus: "update:status",
+  updateInstall: "update:install",
 } as const;
 
 /** O que o processo principal decidiu sobre o Som na última escolha do seletor (spec 0009). */
@@ -120,4 +125,10 @@ export interface ScrnBroadcastApi {
    */
   retryCaptureWithoutSom(): Promise<boolean>;
   getSomSupport(): Promise<SomSupport>;
+  /** Pisca o ícone na barra de tarefas se a janela não estiver em foco (spec 0013). */
+  requestAttention(): void;
+  /** Estado atual do auto-updater para evitar corrida na montagem do renderer (spec 0014). */
+  getUpdateStatus(): Promise<UpdateStatus>;
+  onUpdateStatus(callback: (status: UpdateStatus) => void): () => void;
+  installUpdate(): void;
 }

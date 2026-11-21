@@ -1,6 +1,12 @@
 import type { ReactNode, RefObject } from "react";
 import type { PalcoLayout } from "../../shared/palcoSelection.js";
-import { IconMonitor } from "./components/icons/index.js";
+import {
+  IconEye,
+  IconEyeSlash,
+  IconMonitor,
+  IconVideoCamera,
+  IconVideoCameraSlash,
+} from "./components/icons/index.js";
 import type { SurfaceOf } from "./media/videoSurfaces.js";
 import { VideoTile, type VideoTileSom } from "./VideoTile.js";
 
@@ -28,12 +34,62 @@ export interface PalcoProps {
   readonly onPromoteToFullscreen: (id: string) => void;
   readonly onToggleFullscreen: () => void;
   readonly transmitirButton: ReactNode;
+  /** Transmissor ocultou a própria prévia local para economizar GPU (spec 0015, Parte 2.2). */
+  readonly previaOculta?: boolean;
+  readonly onMostrarPrevia?: () => void;
+  /** Espectador pausou o vídeo remoto manualmente para economizar GPU (spec 0015, Parte 2.3). */
+  readonly videoRemotoPausado?: boolean;
+  readonly onRetomarVideo?: () => void;
 }
 
 export function Palco(props: PalcoProps) {
   const { layout } = props;
 
+  if (props.videoRemotoPausado) {
+    return (
+      <div className="card card-quiet flex flex-1 flex-col items-center justify-center gap-3 text-center">
+        <IconVideoCameraSlash className="empty-palco-icon" />
+        <h3>Vídeo remoto pausado</h3>
+        <p className="field-hint">
+          O vídeo remoto está pausado para economizar GPU. O Som continua tocando normalmente.
+        </p>
+        <div className="flex items-center gap-3">
+          {props.onRetomarVideo && (
+            <button type="button" className="btn btn-primary" onClick={props.onRetomarVideo}>
+              <IconVideoCamera />
+              Retomar vídeo
+            </button>
+          )}
+          {props.previaOculta && props.onMostrarPrevia && (
+            <button type="button" className="btn btn-secondary" onClick={props.onMostrarPrevia}>
+              <IconEye />
+              Mostrar prévia
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   if (layout.vazio) {
+    if (props.previaOculta) {
+      return (
+        <div className="card card-quiet flex flex-1 flex-col items-center justify-center gap-3 text-center">
+          <IconEyeSlash className="empty-palco-icon" />
+          <h3>Você está transmitindo</h3>
+          <p className="field-hint">
+            Prévia oculta para economizar GPU. Os demais Participantes continuam vendo sua Fonte.
+          </p>
+          {props.onMostrarPrevia && (
+            <button type="button" className="btn btn-secondary" onClick={props.onMostrarPrevia}>
+              <IconEye />
+              Mostrar prévia
+            </button>
+          )}
+        </div>
+      );
+    }
+
     return (
       <div className="card card-quiet flex flex-1 flex-col items-center justify-center gap-3 text-center">
         <IconMonitor className="empty-palco-icon" />

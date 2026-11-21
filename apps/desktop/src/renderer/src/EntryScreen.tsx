@@ -47,6 +47,7 @@ export interface EntryScreenProps {
   readonly lastDisconnectReason: string | null;
   /** Pedido enviado, esperando o Anfitrião. Trava os dois botões enquanto durar. */
   readonly awaitingApproval: boolean;
+  readonly updateBanner?: ReactNode;
   readonly onConnect: (action: ConnectAction) => void;
   readonly onCancel: () => void;
 }
@@ -56,6 +57,7 @@ export function EntryScreen({
   sessaoEndedReason,
   lastDisconnectReason,
   awaitingApproval,
+  updateBanner,
   onConnect,
   onCancel,
 }: EntryScreenProps) {
@@ -83,6 +85,8 @@ export function EntryScreen({
             Crie uma Sessão e passe o Código, ou entre com o Código que te passaram. Não há contas nem senhas.
           </p>
         </div>
+
+        {updateBanner}
 
         {/*
          * Sem este aviso, a tela ficava idêntica depois do clique em "Entrar" — e as pessoas

@@ -10,15 +10,19 @@ interface SomTrackSettings extends MediaTrackSettings {
   readonly restrictOwnAudio?: boolean;
 }
 
+interface VideoTrackSettings extends MediaTrackSettings {
+  readonly resizeMode?: string;
+}
+
 /**
- * 720p30 é teto, não piso (spec 0003, "Captura") — por isso `ideal`, nunca `exact`: a Fonte real
- * escolhida no seletor do processo principal decide a resolução, e o encoder pode entregar menos
- * sob congestionamento sem que a captura rejeite o pedido.
+ * 720p30 é teto, não piso (spec 0003, "Captura"; spec 0015, Parte 2.1): `ideal` + `max` evitam
+ * que monitores 1440p/4K ou 144 Hz+ sejam capturados e convertidos acima do alvo da malha, sem
+ * exigir resolução mínima (`exact`) de uma Fonte menor.
  */
 const VIDEO: MediaTrackConstraints = {
-  width: { ideal: 1280 },
-  height: { ideal: 720 },
-  frameRate: { ideal: 30 },
+  width: { ideal: 1280, max: 1280 },
+  height: { ideal: 720, max: 720 },
+  frameRate: { ideal: 30, max: 30 },
 };
 
 /**
@@ -48,6 +52,23 @@ function dropTrack(stream: MediaStream, track: MediaStreamTrack): void {
 }
 
 /**
+ * Configura `contentHint = "motion"` (em vez do padrão de texto estático do Chromium) e registra
+ * no log o que o WGC efetivamente entregou (spec 0015, Parte 2.1).
+ */
+function configureVideoTrack(stream: MediaStream): void {
+  const videoTrack = stream.getVideoTracks()[0];
+  if (!videoTrack) return;
+  videoTrack.contentHint = "motion";
+  const settings: VideoTrackSettings = videoTrack.getSettings();
+  logToMain("info", "video-capture-started", {
+    width: settings.width,
+    height: settings.height,
+    frameRate: settings.frameRate,
+    resizeMode: settings.resizeMode,
+  });
+}
+
+/**
  * Captura a Fonte com o Som que o processo principal decidiu (spec 0009, "Captura no renderer").
  * Cada caminho em que o Som some escreve no log: nenhum deles lança.
  */
@@ -61,8 +82,11 @@ export async function captureFonte(): Promise<FonteCapture> {
     if (!(await window.scrnBroadcast.retryCaptureWithoutSom())) throw error;
     logToMain("warn", "som-capture-unavailable", { reason: "capture-failed", message: String(error) });
     stream = await navigator.mediaDevices.getDisplayMedia({ video: VIDEO, audio: false });
+    configureVideoTrack(stream);
     return unavailable(stream, "capture-failed");
   }
+
+  configureVideoTrack(stream);
 
   const track = stream.getAudioTracks()[0];
   if (!track) {

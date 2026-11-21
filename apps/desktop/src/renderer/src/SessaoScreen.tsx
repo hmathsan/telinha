@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { MAX_TRANSMISSORES } from "@scrn-broadcast/protocol";
 import type { ClientSessaoState } from "../../shared/clientSessaoState.js";
 import type { SignalingConnectionState } from "../../shared/ipc.js";
@@ -31,7 +31,13 @@ export interface SessaoScreenProps {
   readonly somAtivo: boolean;
   /** O último `som-state` de cada Transmissor remoto. */
   readonly somStates: ReadonlyMap<string, boolean>;
+  /** Apito de Pedido de entrada silenciado pelo Anfitrião (spec 0013). */
+  readonly apitoSilenciado: boolean;
+  /** Faixa de atualização no app, quando houver nova versão baixando ou pronta (spec 0014). */
+  readonly updateBanner?: ReactNode;
   readonly onSetSomAtivo: (ativo: boolean) => void;
+  readonly onSetApitoSilenciado: (silenciado: boolean) => void;
+  readonly onSetRemoteVideoPaused: (paused: boolean, reason: "hidden" | "manual") => void;
   readonly onRespondEntry: (participanteId: string, approved: boolean) => void;
   readonly onStartTransmitindo: () => void;
   readonly onReleasePalco: () => void;
@@ -77,8 +83,11 @@ function connectionBanner(connectionState: SignalingConnectionState): string | n
   }
 }
 
+/** Debounce antes de pausar o vídeo remoto ao minimizar/ocultar a janela (spec 0015, Parte 2.3). */
+const HIDE_PAUSE_DELAY_MS = 2000;
+
 export function SessaoScreen(props: SessaoScreenProps) {
-  const { state } = props;
+  const { state, onSetRemoteVideoPaused } = props;
   const [showDiagnostics, setShowDiagnostics] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [promotedId, setPromotedId] = useState<string | null>(null);
@@ -88,19 +97,88 @@ export function SessaoScreen(props: SessaoScreenProps) {
   const [volumes, setVolumes] = useState<ReadonlyMap<string, number>>(new Map());
   /** A faixa dispensada é a do `SomStatus` daquela captura; uma captura nova traz a faixa de volta. */
   const [faixaDispensada, setFaixaDispensada] = useState<SomStatus | null>(null);
+  /** Prévia local oculta para economizar GPU enquanto transmite (spec 0015, Parte 2.2). */
+  const [previaOculta, setPreviaOculta] = useState(false);
+  /** Vídeo remoto pausado manualmente pelo Espectador (spec 0015, Parte 2.3). */
+  const [manualVideoPaused, setManualVideoPaused] = useState(false);
+  /** Vídeo remoto pausado automaticamente após 2 s com a janela oculta (spec 0015, Parte 2.3). */
+  const [hiddenVideoPaused, setHiddenVideoPaused] = useState(false);
+  const lastPauseReasonRef = useRef<"hidden" | "manual">("hidden");
   const palcoRef = useRef<HTMLDivElement | null>(null);
 
   const banner = connectionBanner(props.connectionState);
   const palcoOcupado = state.transmissores.length >= MAX_TRANSMISSORES;
+  const hasRemoteTransmissor = state.transmissores.some((id) => id !== state.myId);
+
+  // Ao parar de transmitir, volta a mostrar a prévia na próxima transmissão.
+  useEffect(() => {
+    if (!props.isTransmitting) setPreviaOculta(false);
+  }, [props.isTransmitting]);
+
+  // Se todos os Transmissores remotos pararem, desfaz a pausa manual para a próxima transmissão.
+  useEffect(() => {
+    if (!hasRemoteTransmissor && manualVideoPaused) {
+      lastPauseReasonRef.current = "manual";
+      setManualVideoPaused(false);
+    }
+  }, [hasRemoteTransmissor, manualVideoPaused]);
+
+  // Pausa o vídeo remoto após 2 s contínuos em `document.hidden`; volta imediata ao ficar visível.
+  useEffect(() => {
+    let hideTimer: ReturnType<typeof setTimeout> | null = null;
+
+    function clearHideTimer(): void {
+      if (hideTimer !== null) {
+        clearTimeout(hideTimer);
+        hideTimer = null;
+      }
+    }
+
+    function onVisibilityChange(): void {
+      if (document.hidden) {
+        clearHideTimer();
+        hideTimer = setTimeout(() => {
+          hideTimer = null;
+          if (!document.hidden) return;
+          lastPauseReasonRef.current = "hidden";
+          setHiddenVideoPaused(true);
+        }, HIDE_PAUSE_DELAY_MS);
+      } else {
+        clearHideTimer();
+        lastPauseReasonRef.current = "hidden";
+        setHiddenVideoPaused(false);
+      }
+    }
+
+    if (document.hidden) onVisibilityChange();
+
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => {
+      clearHideTimer();
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, []);
+
+  const effectiveVideoPaused = manualVideoPaused || hiddenVideoPaused;
+  useEffect(() => {
+    onSetRemoteVideoPaused(effectiveVideoPaused, lastPauseReasonRef.current);
+  }, [effectiveVideoPaused, onSetRemoteVideoPaused]);
+
+  function toggleManualVideoPaused(): void {
+    lastPauseReasonRef.current = "manual";
+    setManualVideoPaused((prev) => !prev);
+  }
 
   const streamsById = useMemo(() => {
     const map = new Map<string, MediaStream>(props.remoteStreams);
-    if (props.isTransmitting && props.localStream && state.myId) map.set(state.myId, props.localStream);
+    if (props.isTransmitting && props.localStream && state.myId && !previaOculta) {
+      map.set(state.myId, props.localStream);
+    }
     return map;
-  }, [props.remoteStreams, props.isTransmitting, props.localStream, state.myId]);
+  }, [props.remoteStreams, props.isTransmitting, props.localStream, state.myId, previaOculta]);
 
   // Os `<video>` vivem aqui, não dentro do Palco: o layout muda o tempo todo, o elemento não.
-  const surfaceOf = useVideoSurfaces(streamsById);
+  const surfaceOf = useVideoSurfaces(streamsById, state.myId);
 
   // Todas as regras de layout — alternador, ordem das células, quem está no Palco, e a volta para
   // Foco quando um Transmissor sai da Grade — vivem fora do React (spec 0008).
@@ -261,7 +339,16 @@ export function SessaoScreen(props: SessaoScreenProps) {
         onModoChange={setModoPreferido}
         temEscolhaDeSom={escolhas.size > 0}
         onSomSegueOPalco={() => setEscolhas(new Map())}
+        isTransmitting={props.isTransmitting}
+        previaOculta={previaOculta}
+        onTogglePreviaOculta={() => setPreviaOculta((v) => !v)}
+        hasRemoteTransmissor={hasRemoteTransmissor}
+        videoRemotoPausado={manualVideoPaused}
+        onToggleVideoRemotoPausado={toggleManualVideoPaused}
         transmitirButton={transmitirButton}
+        isAnfitriao={state.isAnfitriao}
+        apitoSilenciado={props.apitoSilenciado}
+        onToggleApitoSilenciado={() => props.onSetApitoSilenciado(!props.apitoSilenciado)}
         participantesCount={state.roster.length}
         drawerOpen={drawerOpen}
         onToggleDrawer={() => setDrawerOpen((v) => !v)}
@@ -272,6 +359,8 @@ export function SessaoScreen(props: SessaoScreenProps) {
 
       <div className="flex min-h-0 flex-1">
         <main className="flex min-w-0 flex-1 flex-col gap-3 p-4">
+          {props.updateBanner}
+
           {faixa && (
             <div className="faixa-warn flex-none" role="status">
               <IconWarningCircle className="faixa-warn-icon" />
@@ -302,6 +391,13 @@ export function SessaoScreen(props: SessaoScreenProps) {
             onPromoteToFullscreen={promoteToFullscreen}
             onToggleFullscreen={toggleFullscreen}
             transmitirButton={transmitirButton}
+            previaOculta={props.isTransmitting && previaOculta}
+            onMostrarPrevia={() => setPreviaOculta(false)}
+            videoRemotoPausado={hasRemoteTransmissor && manualVideoPaused}
+            onRetomarVideo={() => {
+              lastPauseReasonRef.current = "manual";
+              setManualVideoPaused(false);
+            }}
           />
 
           <QualityIndicator

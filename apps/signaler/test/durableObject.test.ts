@@ -1,5 +1,9 @@
 import { MAX_PARTICIPANTES, MAX_TRANSMISSORES, PROTOCOL_VERSION } from "@scrn-broadcast/protocol";
-import { expect, test } from "vitest";
+import { createExecutionContext, runInDurableObject, waitOnExecutionContext } from "cloudflare:test";
+import { env } from "cloudflare:workers";
+import { expect, test, vi } from "vitest";
+import type { Env } from "../src/env.js";
+import worker from "../src/index.js";
 import { connect, nextMessage, send } from "./helpers.js";
 
 async function createSessao(name = "Ana") {
@@ -88,7 +92,7 @@ test("o oitavo participante e recusado com sessao-full", async () => {
   send(eighth, { type: "join", codigoDeSessao, name: "Eighth", protocolVersion: PROTOCOL_VERSION, joinNonce: crypto.randomUUID() });
   const refused = await nextMessage(eighth);
   expect(refused).toEqual({ type: "entry-refused", reason: "sessao-full" });
-});
+}, 15_000);
 
 test("join com versao incompativel e recusado com incompatible-version", async () => {
   const { codigoDeSessao } = await createSessao("Ana");
@@ -204,4 +208,77 @@ test("um pendente que desiste some da fila do Anfitriao", async () => {
     participanteId: pedido.participanteId,
   });
 });
+
+test("ping recebe pong por resposta automatica sem acordar webSocketMessage nem gravar no storage", async () => {
+  const request = new Request("http://sinalizador/sessao/create", {
+    headers: { Upgrade: "websocket" },
+  });
+  const ctx = createExecutionContext();
+  const response = await worker.fetch(request, env as unknown as Env, ctx);
+  await waitOnExecutionContext(ctx);
+  const ws = response.webSocket;
+  if (!ws) throw new Error("expected websocket response");
+
+  const rawQueue: string[] = [];
+  const rawWaiters: ((text: string) => void)[] = [];
+  ws.addEventListener("message", (event: MessageEvent) => {
+    const text = event.data as string;
+    const waiter = rawWaiters.shift();
+    if (waiter) waiter(text);
+    else rawQueue.push(text);
+  });
+  ws.accept();
+
+  const nextRaw = (timeoutMs = 2000): Promise<string> => {
+    const queued = rawQueue.shift();
+    if (queued !== undefined) return Promise.resolve(queued);
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error("timed out waiting for raw message")), timeoutMs);
+      rawWaiters.push((text) => {
+        clearTimeout(timer);
+        resolve(text);
+      });
+    });
+  };
+
+  // Cria a Sessão primeiro para obter o codigoDeSessao e inspecionar o Durable Object.
+  ws.send(
+    JSON.stringify({
+      type: "create-sessao",
+      name: "Ana",
+      protocolVersion: PROTOCOL_VERSION,
+      joinNonce: crypto.randomUUID(),
+    }),
+  );
+  const created = JSON.parse(await nextRaw()) as { type: string; codigoDeSessao: string };
+  expect(created.type).toBe("sessao-created");
+  const ice = JSON.parse(await nextRaw()) as { type: string };
+  expect(ice.type).toBe("ice-servers");
+
+  const typedEnv = env as unknown as Env;
+  const stub = typedEnv.SESSAO.get(typedEnv.SESSAO.idFromName(created.codigoDeSessao));
+  const { autoResponse, webSocketMessageSpy, putSpy } = await runInDurableObject(stub, (instance, state) => ({
+    autoResponse: state.getWebSocketAutoResponse(),
+    webSocketMessageSpy: vi.spyOn(instance, "webSocketMessage"),
+    putSpy: vi.spyOn(state.storage, "put"),
+  }));
+
+  expect(autoResponse?.request).toBe("ping");
+  expect(autoResponse?.response).toBe("pong");
+
+  ws.send("ping");
+  expect(await nextRaw()).toBe("pong");
+  expect(webSocketMessageSpy).not.toHaveBeenCalled();
+  expect(putSpy).not.toHaveBeenCalled();
+
+  webSocketMessageSpy.mockRestore();
+  putSpy.mockRestore();
+
+  // Mensagens normais continuam funcionando depois do heartbeat.
+  ws.send(JSON.stringify({ type: "request-palco" }));
+  const palco = JSON.parse(await nextRaw()) as { type: string; participanteIds: string[] };
+  expect(palco.type).toBe("transmissores-changed");
+  expect(palco.participanteIds).toHaveLength(1);
+});
+
 

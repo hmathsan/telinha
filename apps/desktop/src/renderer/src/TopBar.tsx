@@ -2,14 +2,20 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { formatCodigoDeSessao } from "../../shared/codigoDeSessao.js";
 import type { ModoPalco } from "../../shared/palcoSelection.js";
 import {
+  IconBell,
+  IconBellSlash,
   IconBroadcast,
   IconCheck,
   IconCopy,
+  IconEye,
+  IconEyeSlash,
   IconGridFour,
   IconSignOut,
   IconSpeakerHigh,
   IconSquare,
   IconUsers,
+  IconVideoCamera,
+  IconVideoCameraSlash,
 } from "./components/icons/index.js";
 
 const COPIED_FEEDBACK_MS = 1500;
@@ -22,7 +28,19 @@ export interface TopBarProps {
   /** Há escolha manual de Som a desfazer (spec 0010, "Som segue o Palco"). */
   readonly temEscolhaDeSom: boolean;
   readonly onSomSegueOPalco: () => void;
+  /** Prévia local oculta pelo Transmissor para economizar GPU (spec 0015). */
+  readonly isTransmitting: boolean;
+  readonly previaOculta: boolean;
+  readonly onTogglePreviaOculta: () => void;
+  /** Vídeo remoto pausado manualmente pelo Espectador (spec 0015). */
+  readonly hasRemoteTransmissor: boolean;
+  readonly videoRemotoPausado: boolean;
+  readonly onToggleVideoRemotoPausado: () => void;
   readonly transmitirButton: ReactNode;
+  /** Só o Anfitrião recebe Pedidos de entrada e controla o apito (spec 0013). */
+  readonly isAnfitriao: boolean;
+  readonly apitoSilenciado: boolean;
+  readonly onToggleApitoSilenciado: () => void;
   readonly participantesCount: number;
   readonly drawerOpen: boolean;
   readonly onToggleDrawer: () => void;
@@ -106,7 +124,50 @@ export function TopBar(props: TopBarProps) {
       )}
       {props.alternadorVisivel && <span className="topbar-divider" aria-hidden="true" />}
 
+      {props.isTransmitting && (
+        <button
+          type="button"
+          className="btn btn-ghost btn-toggle"
+          aria-pressed={props.previaOculta}
+          onClick={props.onTogglePreviaOculta}
+          title={props.previaOculta ? "Mostrar prévia local no Palco" : "Ocultar prévia local para economizar GPU"}
+        >
+          {props.previaOculta ? <IconEyeSlash /> : <IconEye />}
+          {props.previaOculta ? "Mostrar prévia" : "Ocultar prévia"}
+        </button>
+      )}
+
+      {props.hasRemoteTransmissor && (
+        <button
+          type="button"
+          className="btn btn-ghost btn-toggle"
+          aria-pressed={props.videoRemotoPausado}
+          onClick={props.onToggleVideoRemotoPausado}
+          title={
+            props.videoRemotoPausado
+              ? "Retomar o vídeo dos Transmissores"
+              : "Pausar o vídeo remoto para economizar GPU (mantém o Som)"
+          }
+        >
+          {props.videoRemotoPausado ? <IconVideoCameraSlash /> : <IconVideoCamera />}
+          {props.videoRemotoPausado ? "Retomar vídeo" : "Pausar vídeo"}
+        </button>
+      )}
+
       {props.transmitirButton}
+
+      {props.isAnfitriao && (
+        <button
+          type="button"
+          className="btn btn-ghost btn-icon btn-toggle"
+          aria-pressed={props.apitoSilenciado}
+          onClick={props.onToggleApitoSilenciado}
+          title={props.apitoSilenciado ? "Ativar apito de entrada" : "Silenciar apito de entrada"}
+          aria-label={props.apitoSilenciado ? "Ativar apito de entrada" : "Silenciar apito de entrada"}
+        >
+          {props.apitoSilenciado ? <IconBellSlash /> : <IconBell />}
+        </button>
+      )}
 
       <button
         type="button"

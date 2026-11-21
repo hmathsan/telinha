@@ -16,6 +16,13 @@ function formatRtt(ms: number | null): string {
   return ms === null ? "—" : `${ms} ms`;
 }
 
+function formatCodec(implementation: string | null, avgTimeMs: number | null): string {
+  if (implementation === null && avgTimeMs === null) return "—";
+  const label = implementation ?? "—";
+  if (avgTimeMs === null) return label;
+  return `${label} (${avgTimeMs.toFixed(1)} ms)`;
+}
+
 /**
  * A coluna que o diagnóstico não tinha na noite em que uma perna ficou congelada por quatro
  * minutos: quanto tempo ela está quebrada e quantas vezes a escada já tentou consertá-la. Sem
@@ -95,7 +102,7 @@ export function DiagnosticsPanel(props: DiagnosticsPanelProps) {
               <th>Som kbps</th>
               <th>Som perda</th>
               <th>RTT</th>
-              <th>Encoder</th>
+              <th>Encoder / Decoder</th>
               <th>Limitação</th>
               <th>Conexão</th>
               <th>Recuperação</th>
@@ -105,6 +112,15 @@ export function DiagnosticsPanel(props: DiagnosticsPanelProps) {
             {props.diagnostics.map((d) => {
               const enviando = d.role === "transmissor";
               const outro = enviando ? d.espectadorId : d.transmissorId;
+              const codecImpl = enviando ? d.encoderImplementation : d.decoderImplementation;
+              const avgTimeMs = enviando ? d.avgEncodeTimeMs : d.avgDecodeTimeMs;
+              const powerEfficient = enviando ? d.powerEfficientEncoder : d.powerEfficientDecoder;
+              const codecTitle =
+                powerEfficient === null
+                  ? undefined
+                  : powerEfficient
+                    ? "Aceleração por hardware"
+                    : "Sem aceleração por hardware";
               return (
                 <tr key={d.connectionKey}>
                   <td>{`${enviando ? "→" : "←"} ${props.nameOf(outro)}`}</td>
@@ -114,7 +130,7 @@ export function DiagnosticsPanel(props: DiagnosticsPanelProps) {
                   <td>{formatKbps(enviando ? d.somOutboundBitrateBps : d.somInboundBitrateBps)}</td>
                   <td>{d.somPacketsLost ?? "—"}</td>
                   <td>{formatRtt(d.roundTripTimeMs)}</td>
-                  <td>{d.encoderImplementation ?? "—"}</td>
+                  <td title={codecTitle}>{formatCodec(codecImpl, avgTimeMs)}</td>
                   <td>{d.qualityLimitationReason ?? "—"}</td>
                   <td>{d.relay.isRelay ? "servidor de retransmissão" : "direto"}</td>
                   <td>{formatRecuperacao(d.msUnhealthy, d.restartAttempts)}</td>

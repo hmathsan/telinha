@@ -11,9 +11,15 @@ const healthy: VideoSurfaceHealth = {
   trackReadyState: "live",
   trackMuted: false,
   attempts: 0,
+  documentHidden: false,
+  isLocal: false,
 };
 
 describe("shouldReattachVideo", () => {
+  it("uses the 2500ms stale frame threshold", () => {
+    expect(STALE_FRAME_MS).toBe(2500);
+  });
+
   it("leaves an element that is receiving frames alone", () => {
     expect(shouldReattachVideo(healthy)).toBe(false);
   });
@@ -22,8 +28,20 @@ describe("shouldReattachVideo", () => {
     expect(shouldReattachVideo({ ...healthy, msSinceLastFrame: STALE_FRAME_MS + 1 })).toBe(true);
   });
 
-  it("tolerates a gap shorter than the threshold", () => {
+  it("tolerates a gap shorter than or equal to the threshold", () => {
     expect(shouldReattachVideo({ ...healthy, msSinceLastFrame: STALE_FRAME_MS })).toBe(false);
+  });
+
+  it("does not reattach when the document is hidden", () => {
+    expect(
+      shouldReattachVideo({ ...healthy, msSinceLastFrame: 10_000, documentHidden: true }),
+    ).toBe(false);
+  });
+
+  it("does not reattach the local Transmissor preview", () => {
+    expect(
+      shouldReattachVideo({ ...healthy, msSinceLastFrame: 10_000, isLocal: true }),
+    ).toBe(false);
   });
 
   it("does not reattach an ended track — there is no media to paint", () => {

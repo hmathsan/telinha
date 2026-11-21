@@ -1,4 +1,9 @@
-import { buildEncodingParameters, MAX_BITRATE_BPS, MAX_SOM_BITRATE_BPS } from "../../../shared/media/bitrate.js";
+import {
+  buildEncodingParameters,
+  MAX_BITRATE_BPS,
+  MAX_FRAMERATE,
+  MAX_SOM_BITRATE_BPS,
+} from "../../../shared/media/bitrate.js";
 import { withOpusStereo } from "../../../shared/media/opusStereo.js";
 import { SomSilenceTracker } from "../../../shared/media/somSilence.js";
 import { preferH264 } from "../../../shared/media/codecPreference.js";
@@ -41,6 +46,8 @@ interface ManagedConnection {
   readonly espectadorId: string;
   readonly role: Role;
   lastEncoderImplementation: string | null;
+  /** Último codec (encoder no Transmissor, decoder no Espectador) registrado em `mesh-media-codec`. */
+  lastLoggedCodec: string | null;
   /** Quando esta perna entrou em estado insalubre de ICE. `null` enquanto está saudável. */
   unhealthySince: number | null;
   /** Quantos `iceRestart` já se tentou desde a última vez que ela esteve saudável. */
@@ -56,6 +63,10 @@ interface ManagedConnection {
    * e sem entrada no mapa não sobra ninguém para insistir no pedido.
    */
   awaitingReplacement: boolean;
+  /** Só do Transmissor: o transceiver de vídeo, usado para pausar/retomar via `encodings[0].active`. */
+  videoTransceiver: RTCRtpTransceiver | null;
+  /** Só do Transmissor: o Espectador desta perna pediu pausa de vídeo (`video-pause`). */
+  remoteVideoPaused: boolean;
   /**
    * Só do Transmissor: o transceiver do Som. Depois de `replaceTrack(null)` o `sender.track` é
    * `null` e não serve mais para achá-lo (spec 0010, "Botão na barra superior").
@@ -102,6 +113,8 @@ export class MeshManager {
   private diagnosticsTimer: ReturnType<typeof setInterval> | null = null;
   /** Silenciado pela barra: os senders de áudio ficam em `replaceTrack(null)`. */
   private somAtivo = true;
+  /** Vídeo remoto pausado pelo Espectador (manual ou janela oculta — spec 0015, Parte 2.3). */
+  private incomingVideoPaused = false;
 
   constructor(private readonly handlers: MeshManagerHandlers) {
     this.diagnosticsTimer = setInterval(() => void this.pollDiagnostics(), DIAGNOSTICS_INTERVAL_MS);
@@ -156,6 +169,30 @@ export class MeshManager {
     }
     logToMain("info", "som-ativo-changed", { ativo });
     this.broadcastSomState();
+  }
+
+  /**
+   * Pausa ou retoma o vídeo remoto em todas as pernas de Espectador sem afetar o Som
+   * (spec 0015, Parte 2.3). Cada Transmissor ativo desliga `encodings[0].active` só para esta perna.
+   */
+  public setRemoteVideoPaused(paused: boolean, reason: "hidden" | "manual"): void {
+    if (paused === this.incomingVideoPaused) return;
+    this.incomingVideoPaused = paused;
+    const now = Date.now();
+    const transmissores: string[] = [];
+    for (const entry of this.connections.values()) {
+      if (entry.role !== "espectador") continue;
+      // Ao pausar ou retomar, renova o relógio para não disparar `isMediaStalled` na volta.
+      entry.mediaFlowingAt = now;
+      transmissores.push(entry.transmissorId);
+      this.handlers.sendSignal(entry.transmissorId, {
+        kind: "video-pause",
+        transmissorId: entry.transmissorId,
+        espectadorId: entry.espectadorId,
+        paused,
+      });
+    }
+    logToMain("info", "mesh-video-pause-sent", { paused, reason, transmissores });
   }
 
   /** A track de áudio terminou no meio da transmissão: o Som conta como encerrado (spec 0010). */
@@ -215,6 +252,7 @@ export class MeshManager {
     this.pendingCandidates.clear();
     for (const track of this.localStream?.getTracks() ?? []) track.stop();
     this.localStream = null;
+    this.incomingVideoPaused = false;
   }
 
   // -------------------------------------------------------------------------
@@ -247,6 +285,16 @@ export class MeshManager {
           sdp: entry.pc.localDescription.toJSON() as SessionDescriptionLike,
         });
       }
+      // Perna nova ou recriada enquanto o Espectador está com o vídeo pausado: avisa o Transmissor
+      // para pausar esta perna também (spec 0015, Parte 2.3).
+      if (this.incomingVideoPaused) {
+        this.handlers.sendSignal(payload.transmissorId, {
+          kind: "video-pause",
+          transmissorId: payload.transmissorId,
+          espectadorId: payload.espectadorId,
+          paused: true,
+        });
+      }
       return;
     }
 
@@ -261,6 +309,11 @@ export class MeshManager {
 
     if (payload.kind === "recovery-request") {
       this.applyRecoveryRequest(key, payload.mode);
+      return;
+    }
+
+    if (payload.kind === "video-pause") {
+      await this.applyRemoteVideoPause(key, payload.paused);
       return;
     }
 
@@ -290,6 +343,31 @@ export class MeshManager {
     this.runRecovery(key, entry, mode === "recreate" ? "recreate" : "restart-ice", "peer", 0, now);
   }
 
+  /**
+   * Pausa ou retoma o encode de vídeo para um Espectador específico via `encodings[0].active`
+   * sem renegociar e sem afetar o Som (spec 0015, Parte 2.3).
+   */
+  private async applyRemoteVideoPause(key: string, paused: boolean): Promise<void> {
+    const entry = this.connections.get(key);
+    if (!entry || entry.role !== "transmissor" || entry.transmissorId !== this.myId) return;
+    entry.remoteVideoPaused = paused;
+    const transceiver = entry.videoTransceiver;
+    if (!transceiver) return;
+    const sender = transceiver.sender;
+    const params = sender.getParameters();
+    const first = params.encodings[0];
+    if (!first) {
+      params.encodings = buildEncodingParameters(MAX_BITRATE_BPS, {
+        maxFramerate: MAX_FRAMERATE,
+        active: !paused,
+      });
+    } else {
+      first.active = !paused;
+    }
+    await sender.setParameters(params);
+    logToMain("info", "mesh-video-pause-applied", { key, paused });
+  }
+
   private createOutgoingConnection(espectadorId: string): void {
     if (!this.myId || !this.localStream) return;
     const key = connectionKey(this.myId, espectadorId);
@@ -303,8 +381,10 @@ export class MeshManager {
       // `applyPreferredCodecs` usa as capacidades de vídeo e lançaria num transceiver de áudio. O
       // Som não tem preferência de codec: é Opus, e o estéreo vai no SDP.
       const isVideo = track.kind === "video";
-      if (isVideo) this.applyPreferredCodecs(transceiver);
-      else {
+      if (isVideo) {
+        entry.videoTransceiver = transceiver;
+        this.applyPreferredCodecs(transceiver);
+      } else {
         entry.somTransceiver = transceiver;
         // Perna nova enquanto o Som está silenciado: nasce silenciada, sem renegociar depois.
         if (!this.somAtivo) {
@@ -316,7 +396,11 @@ export class MeshManager {
 
       const sender = transceiver.sender;
       const params = sender.getParameters();
-      params.encodings = buildEncodingParameters(isVideo ? MAX_BITRATE_BPS : MAX_SOM_BITRATE_BPS);
+      params.encodings = buildEncodingParameters(
+        isVideo ? MAX_BITRATE_BPS : MAX_SOM_BITRATE_BPS,
+        isVideo ? { maxFramerate: MAX_FRAMERATE } : undefined,
+      );
+      if (isVideo) params.degradationPreference = "maintain-framerate";
       void sender.setParameters(params).catch(() => {
         // Alguns motores exigem uma negociação completa antes de aceitar setParameters; o teto
         // de bitrate não é crítico o bastante para bloquear a conexão nesse caso raro.
@@ -341,11 +425,14 @@ export class MeshManager {
       espectadorId,
       role,
       lastEncoderImplementation: null,
+      lastLoggedCodec: null,
       unhealthySince: null,
       restartAttempts: 0,
       lastRecoveryAt: 0,
       mediaFlowingAt: now,
       awaitingReplacement: false,
+      videoTransceiver: null,
+      remoteVideoPaused: false,
       somTransceiver: null,
     };
     this.wireConnection(entry);
@@ -597,6 +684,24 @@ export class MeshManager {
       }
       entry.lastEncoderImplementation = snapshot.encoderImplementation;
 
+      const activeCodec =
+        entry.role === "transmissor" ? snapshot.encoderImplementation : snapshot.decoderImplementation;
+      if (activeCodec !== null && activeCodec !== entry.lastLoggedCodec) {
+        entry.lastLoggedCodec = activeCodec;
+        logToMain("info", "mesh-media-codec", {
+          key,
+          role: entry.role,
+          encoderImplementation: snapshot.encoderImplementation,
+          decoderImplementation: snapshot.decoderImplementation,
+          powerEfficientEncoder: snapshot.powerEfficientEncoder,
+          powerEfficientDecoder: snapshot.powerEfficientDecoder,
+          frameWidth: snapshot.frameWidth,
+          frameHeight: snapshot.frameHeight,
+          framesPerSecond: snapshot.framesPerSecond,
+          qualityLimitationReason: snapshot.qualityLimitationReason,
+        });
+      }
+
       const iceConnectionState = entry.pc.iceConnectionState;
       this.syncHealth(entry, iceConnectionState, now);
       let msUnhealthy = entry.unhealthySince === null ? 0 : now - entry.unhealthySince;
@@ -609,9 +714,11 @@ export class MeshManager {
 
       // Watchdog de mídia: fluxo parado com o ICE ainda em `connected` não emite evento nenhum,
       // e era a metade do congelamento que nada enxergava. Só conta quando o ICE não tem nada a
-      // dizer — o que ele já denunciou está sendo tratado acima.
-      if (snapshot.inboundBitrateBps !== 0) entry.mediaFlowingAt = now;
-      if (action === "none") {
+      // dizer — o que ele já denunciou está sendo tratado acima. Com vídeo pausado pelo Espectador
+      // (spec 0015, Parte 2.3), bitrate zero é intencional e não dispara recuperação.
+      const videoPausedHere = entry.role === "espectador" && this.incomingVideoPaused;
+      if (snapshot.inboundBitrateBps !== 0 || videoPausedHere) entry.mediaFlowingAt = now;
+      if (action === "none" && !videoPausedHere) {
         const msSinceMediaFlowing = now - entry.mediaFlowingAt;
         if (
           isMediaStalled({

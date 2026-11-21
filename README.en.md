@@ -34,7 +34,7 @@ and run it. Windows 10 or 11.
 > year, and this project is free and makes no money. Click **More info**, then **Run anyway**. The
 > entire source is in this repository if you would like to check it first.
 
-After the first install, updates are silent: they arrive on their own and apply on the next start.
+After the first install, updates download automatically in the background and show a discreet in-app banner so you can restart and install whenever you are ready.
 
 ## Using it, in thirty seconds
 
@@ -47,7 +47,9 @@ After the first install, updates are silent: they arrive on their own and apply 
 
 Up to **seven people** per session, with **two broadcasting at once** — enough to show two games
 side by side. Whoever is watching chooses between one large screen with thumbnails below, or all
-of them the same size in a grid.
+of them the same size in a grid. To save GPU while gaming, broadcasters can **hide their own local
+preview**, and viewers can **pause remote video** (or simply minimize the window — video pauses
+automatically after 2 s and resumes immediately when restored) while keeping the sound playing.
 
 When you, the person who created the session, leave, the session ends for everyone. That is
 deliberate. A dropped connection of up to a minute — yours or anyone else's — ends nothing: whoever
@@ -124,8 +126,9 @@ receiver. Leaving acceleration on is almost always better: without it the CPU do
 and the machine runs hot.
 
 **"Atualize o aplicativo para entrar nesta Sessão" (update the app to join this session).**
-Somebody is on a newer version. Close Telinha and open it again — the update downloads on its own
-and applies at startup.
+Somebody is on a newer version. Click **Reiniciar e instalar** on the in-app update banner (or
+close Telinha completely and open it again) — the update downloads on its own and applies
+automatically.
 
 **It will not connect at all.**
 Some networks (mobile internet in particular, and certain fiber providers) do not let two machines
@@ -152,7 +155,8 @@ Roughly in order of importance, with no deadlines:
 - **macOS and Linux.**
 - **Say on screen when the connection needs a relay and none is available**, instead of simply
   failing to connect.
-- **Announce that an update arrived**, instead of applying it silently.
+- ~~**Announce that an update arrived**, instead of applying it silently.~~ Done (`v1.1.0`): a
+  discreet in-app banner shows download progress and lets you restart and install when ready.
 - **Turn hardware acceleration on and off from inside the app**, without an environment variable.
 - **Pick the signaling server inside the app**, so running your own does not mean recompiling.
 - **A signed installer**, if the number of people ever justifies the cost.

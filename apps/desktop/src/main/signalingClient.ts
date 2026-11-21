@@ -8,6 +8,7 @@ import {
 import { randomUUID } from "node:crypto";
 import WebSocket from "ws";
 import { nextBackoffDelayMs } from "../shared/backoff.js";
+import { createHeartbeat, HEARTBEAT_PING, isHeartbeatPong, type HeartbeatController } from "../shared/heartbeat.js";
 import { log } from "./log.js";
 import type { ConnectAction, SignalingConnectionState } from "../shared/ipc.js";
 
@@ -79,6 +80,7 @@ export class SignalingClient {
   private deliberateClose = false;
   private reconnectAttempt = 0;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  private heartbeat: HeartbeatController | null = null;
   private readonly outboundQueue: AppToSignalerMessage[] = [];
   private resumeTarget: ResumeTarget | null = null;
   /** Primeira queda desde o último `resumed`; o prazo local da Retomada conta daqui. */
@@ -121,6 +123,7 @@ export class SignalingClient {
   leave(): void {
     this.deliberateClose = true;
     this.clearReconnectTimer();
+    this.stopHeartbeat();
     if (this.ws?.readyState === WebSocket.OPEN) {
       log.info("signaling-leave");
       this.ws.send(JSON.stringify({ type: "leave" } satisfies AppToSignalerMessage));
@@ -140,6 +143,7 @@ export class SignalingClient {
    * `this.ws !== ws` e saem, então nem o `close` que vem a seguir dispara reconexão.
    */
   private discardCurrentSocket(): void {
+    this.stopHeartbeat();
     const ws = this.ws;
     if (!ws) return;
     this.ws = null;
@@ -171,6 +175,7 @@ export class SignalingClient {
     ws.on("open", () => {
       if (!isCurrent()) return;
       log.info("signaling-open", { kind: action.kind, resuming: resumeTarget !== null });
+      this.startHeartbeat(ws, action.kind);
       if (resumeTarget) {
         this.awaitingResumed = true;
         log.info("signaling-resume-sent", { attempt: this.reconnectAttempt, msSinceFall: this.msSinceFall() });
@@ -193,9 +198,15 @@ export class SignalingClient {
 
     ws.on("message", (raw: WebSocket.RawData) => {
       if (!isCurrent()) return;
+      // Qualquer mensagem recebida (inclusive `"pong"`) comprova que o socket segue vivo.
+      this.heartbeat?.onActivity();
+      const text = raw.toString();
+      if (isHeartbeatPong(text)) {
+        return;
+      }
       let parsedJson: unknown;
       try {
-        parsedJson = JSON.parse(raw.toString());
+        parsedJson = JSON.parse(text);
       } catch {
         log.warn("signaling-message-not-json");
         return;
@@ -224,6 +235,7 @@ export class SignalingClient {
       const reason = reasonBuffer.toString();
       log.info("signaling-close", { code, reason, kind: action.kind, current: isCurrent() });
       if (!isCurrent()) return;
+      this.stopHeartbeat();
       if (rejectedStatus !== null && isTerminalHttpStatus(rejectedStatus)) {
         // Um 404 reconectava para sempre (log de 09/09/2026): o sinalizador não vai mudar de ideia.
         this.ws = null;
@@ -342,6 +354,38 @@ export class SignalingClient {
       }
       this.open(action);
     }, delayMs);
+  }
+
+  private startHeartbeat(ws: WebSocket, kind: ConnectAction["kind"]): void {
+    this.stopHeartbeat();
+    const hb = createHeartbeat({
+      sendPing: () => {
+        if (this.ws !== ws || ws.readyState !== WebSocket.OPEN) return;
+        try {
+          ws.send(HEARTBEAT_PING);
+        } catch {
+          // socket já fechando/fechado
+        }
+      },
+      onTimeout: () => {
+        if (this.ws !== ws) return;
+        log.warn("signaling-heartbeat-timeout", { kind });
+        try {
+          ws.terminate();
+        } catch {
+          // já fechado
+        }
+      },
+    });
+    this.heartbeat = hb;
+    hb.start();
+  }
+
+  private stopHeartbeat(): void {
+    if (this.heartbeat) {
+      this.heartbeat.stop();
+      this.heartbeat = null;
+    }
   }
 
   private clearReconnectTimer(): void {

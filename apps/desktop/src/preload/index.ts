@@ -14,6 +14,7 @@ import {
   type SomCaptureReport,
   type SomSupport,
 } from "../shared/ipc.js";
+import type { UpdateStatus } from "../shared/updateState.js";
 
 /**
  * Bridge de contexto da janela principal — a única que existe. O seletor de Fonte é um modal
@@ -42,6 +43,14 @@ const scrnBroadcast: ScrnBroadcastApi = {
   getLastSomCapture: (): Promise<SomCaptureReport | null> => ipcRenderer.invoke(IPC_CHANNELS.somLastCapture),
   retryCaptureWithoutSom: (): Promise<boolean> => ipcRenderer.invoke(IPC_CHANNELS.somRetryWithoutSom),
   getSomSupport: (): Promise<SomSupport> => ipcRenderer.invoke(IPC_CHANNELS.somSupport),
+  requestAttention: () => ipcRenderer.send(IPC_CHANNELS.requestAttention),
+  getUpdateStatus: (): Promise<UpdateStatus> => ipcRenderer.invoke(IPC_CHANNELS.updateGetStatus),
+  onUpdateStatus: (callback: (status: UpdateStatus) => void) => {
+    const listener = (_event: IpcRendererEvent, status: UpdateStatus): void => callback(status);
+    ipcRenderer.on(IPC_CHANNELS.updateStatus, listener);
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.updateStatus, listener);
+  },
+  installUpdate: () => ipcRenderer.send(IPC_CHANNELS.updateInstall),
 };
 
 const picker: PickerApi = {

@@ -11,6 +11,7 @@ interface Surface {
   stream: MediaStream;
   lastFrameAt: number;
   attempts: number;
+  pausedForHidden: boolean;
   frameCallbackId: number | null;
   readonly release: () => void;
 }
@@ -33,8 +34,13 @@ export type SurfaceOf = (id: string) => HTMLVideoElement | null;
  * e inserções do mesmo commit na mesma tarefa, e os ref callbacks rodam na fase de layout desse
  * commit — o elemento já voltou ao documento antes da verificação.
  */
-export function useVideoSurfaces(streamsById: ReadonlyMap<string, MediaStream>): SurfaceOf {
+export function useVideoSurfaces(
+  streamsById: ReadonlyMap<string, MediaStream>,
+  localId: string | null = null,
+): SurfaceOf {
   const surfacesRef = useRef<Map<string, Surface>>(new Map());
+  const localIdRef = useRef<string | null>(localId);
+  localIdRef.current = localId;
   const surfaces = surfacesRef.current;
 
   // Reconcilia durante o render, não num efeito: um elemento criado depois do commit só chegaria
@@ -42,8 +48,12 @@ export function useVideoSurfaces(streamsById: ReadonlyMap<string, MediaStream>):
   // idempotente — o `StrictMode` do `main.tsx` renderiza duas vezes em desenvolvimento.
   for (const [id, stream] of streamsById) {
     const existing = surfaces.get(id);
-    if (!existing) surfaces.set(id, createSurface(id, stream));
-    else if (existing.stream !== stream) attach(existing, stream);
+    const pauseLocal = document.hidden && id === localId;
+    if (!existing) surfaces.set(id, createSurface(id, stream, pauseLocal));
+    else if (existing.stream !== stream) {
+      existing.pausedForHidden = pauseLocal;
+      attach(existing, stream);
+    }
   }
 
   useEffect(() => {
@@ -55,9 +65,47 @@ export function useVideoSurfaces(streamsById: ReadonlyMap<string, MediaStream>):
   }, [streamsById, surfaces]);
 
   useEffect(() => {
+    const onVisibilityChange = (): void => {
+      const now = performance.now();
+      if (document.hidden) {
+        for (const [id, surface] of surfaces) {
+          surface.lastFrameAt = now;
+          if (id === localIdRef.current) {
+            surface.pausedForHidden = true;
+            surface.element.pause();
+          }
+        }
+        return;
+      }
+      // Ao voltar a visível (Alt+Tab / restaurar), renova o relógio e zera tentativas para evitar
+      // disparo imediato do vigia (spec 0015, Parte 1) e retoma a prévia local pausada (Parte 2.2).
+      for (const surface of surfaces.values()) {
+        surface.lastFrameAt = now;
+        surface.attempts = 0;
+        if (surface.pausedForHidden) {
+          surface.pausedForHidden = false;
+          playSurface(surface.id, surface.element);
+        }
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", onVisibilityChange);
+  }, [surfaces]);
+
+  useEffect(() => {
     const timer = setInterval(() => {
       const now = performance.now();
+      const documentHidden = document.hidden;
       for (const [id, surface] of surfaces) {
+        const isLocal = id === localIdRef.current;
+        if (documentHidden) {
+          surface.lastFrameAt = now;
+          if (isLocal && !surface.pausedForHidden) {
+            surface.pausedForHidden = true;
+            surface.element.pause();
+          }
+          continue;
+        }
         const track = surface.stream.getVideoTracks()[0];
         if (!track) continue;
         // `requestVideoFrameCallback` só dispara para quem chega ao compositor, então um elemento
@@ -73,6 +121,8 @@ export function useVideoSurfaces(streamsById: ReadonlyMap<string, MediaStream>):
           trackReadyState: track.readyState,
           trackMuted: track.muted,
           attempts: surface.attempts,
+          documentHidden,
+          isLocal,
         };
         if (!shouldReattachVideo(health)) continue;
         surface.attempts += 1;
@@ -96,7 +146,7 @@ export function useVideoSurfaces(streamsById: ReadonlyMap<string, MediaStream>):
   return (id: string) => surfaces.get(id)?.element ?? null;
 }
 
-function createSurface(id: string, stream: MediaStream): Surface {
+function createSurface(id: string, stream: MediaStream, pausedForHidden: boolean): Surface {
   const element = document.createElement("video");
   element.autoplay = true;
   element.playsInline = true;
@@ -104,14 +154,7 @@ function createSurface(id: string, stream: MediaStream): Surface {
   // tocando faria o Som de todo Transmissor — e o da própria Fonte — soar antes da primeira decisão.
   element.muted = true;
 
-  // Um `<video>` de MediaStream não retoma sozinho depois de ser interrompido: fica no último
-  // quadro, ou preto. `pause` e `emptied` são as interrupções que o elemento anuncia; o quadro
-  // preto que este módulo existe para resolver não anuncia nenhuma, e cai no vigia.
-  const play = (): void => {
-    playSurface(id, element);
-  };
   const events: readonly string[] = ["loadedmetadata", "pause", "emptied"];
-  for (const event of events) element.addEventListener(event, play);
 
   const surface: Surface = {
     id,
@@ -119,6 +162,7 @@ function createSurface(id: string, stream: MediaStream): Surface {
     stream,
     lastFrameAt: performance.now(),
     attempts: 0,
+    pausedForHidden,
     frameCallbackId: null,
     release: () => {
       for (const event of events) element.removeEventListener(event, play);
@@ -128,6 +172,16 @@ function createSurface(id: string, stream: MediaStream): Surface {
       logToMain("info", "video-surface-released", { id });
     },
   };
+
+  // Um `<video>` de MediaStream não retoma sozinho depois de ser interrompido: fica no último
+  // quadro, ou preto. `pause` e `emptied` são as interrupções que o elemento anuncia; o quadro
+  // preto que este módulo existe para resolver não anuncia nenhuma, e cai no vigia. Quando a
+  // pausa foi intencional (`pausedForHidden`), não reverte o `pause()`.
+  const play = (): void => {
+    if (surface.pausedForHidden) return;
+    playSurface(id, element);
+  };
+  for (const event of events) element.addEventListener(event, play);
 
   attach(surface, stream);
   return surface;
@@ -158,7 +212,8 @@ function attach(surface: Surface, stream: MediaStream): void {
   // Descarregar a mídia descarta o callback de quadro pendente; sem re-registrar, o vigia veria
   // um elemento eternamente sem quadros logo depois de consertá-lo.
   watchFrames(surface);
-  playSurface(surface.id, surface.element);
+  if (surface.pausedForHidden) surface.element.pause();
+  else playSurface(surface.id, surface.element);
 }
 
 /**

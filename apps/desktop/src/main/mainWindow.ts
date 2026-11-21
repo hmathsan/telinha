@@ -16,6 +16,8 @@ export function createMainWindow(): BrowserWindow {
   });
 
   win.on("ready-to-show", () => win.show());
+  // Para o piscar na barra de tarefas assim que a pessoa traz o Telinha de volta ao foco (spec 0013).
+  win.on("focus", () => win.flashFrame(false));
 
   const devServerUrl = process.env["ELECTRON_RENDERER_URL"];
   if (devServerUrl) {

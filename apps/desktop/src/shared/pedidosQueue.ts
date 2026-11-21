@@ -31,3 +31,15 @@ export function selectPilhaDePedidos(pedidos: readonly EntryRequestEntry[]): Pil
     total: pedidos.length,
   };
 }
+
+/**
+ * Os pedidos cujo `participanteId` ainda não apitou nesta Sessão, na ordem de chegada (spec 0013).
+ * Usar o conjunto de `anunciados` (e não o diff com a lista anterior) mantém a Retomada correta:
+ * ao retomar, o Anfitrião recebe de novo os pedidos pendentes e eles não voltam a apitar.
+ */
+export function pedidosNovos(
+  anunciados: ReadonlySet<string>,
+  pedidos: readonly EntryRequestEntry[],
+): EntryRequestEntry[] {
+  return pedidos.filter((pedido) => !anunciados.has(pedido.participanteId));
+}
